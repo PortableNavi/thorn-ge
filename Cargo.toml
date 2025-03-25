@@ -1,0 +1,3 @@
+[workspace]
+members = [ "ploader", "plugin","thorn"]
+resolver = "2"
