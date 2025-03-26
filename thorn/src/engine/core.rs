@@ -198,8 +198,6 @@ fn main_loop(core: Layer<Core>, msg: Receiver<MainLoopMsg>)
     // because at completly uncapped fps things start to break...
     const MIN_FRAME_TIME: Duration = Duration::from_millis(1);
 
-    println!("Main loop started");
-
     #[allow(unused)]
     let mut delta = Duration::from_secs(0);
     let mut fps_cap = Duration::from_secs_f64(1.0 / 120.0);
@@ -218,7 +216,7 @@ fn main_loop(core: Layer<Core>, msg: Receiver<MainLoopMsg>)
 
                     if target_frame_time < MIN_FRAME_TIME
                     {
-                        println!(
+                        log::warn!(
                             "Warning: Framerate cap is above 1000 FPS. Capping at 1000 FPS..."
                         );
                         MIN_FRAME_TIME
@@ -253,7 +251,7 @@ fn main_loop(core: Layer<Core>, msg: Receiver<MainLoopMsg>)
         {
             if let Err(e) = task(&frame_info)
             {
-                println!("Error while executing task in main loop: {e:?}");
+                log::error!("Error while executing task in main loop: {e:?}");
             }
         }
 
@@ -271,5 +269,5 @@ fn main_loop(core: Layer<Core>, msg: Receiver<MainLoopMsg>)
     }
 
     core.read().unwrap().terminate_loader();
-    println!("Main loop stopped");
+    log::info!("Core loop stopped");
 }
