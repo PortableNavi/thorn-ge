@@ -13,4 +13,4 @@
   * [x] `4.1` Build upon `3.1` to implement a scheduler that can schedule repeating work based on time intervals 
 
 ### `5` Loader
-  * [ ] `5.1` Configure logger + switch all prints to logging and add more loggin.
+  * [x] `5.1` Configure logger + switch all prints to logging and add more logging.
