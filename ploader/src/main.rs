@@ -1,8 +1,13 @@
+#![feature(exitcode_exit_method)]
+
+
 mod loader;
-use std::time::Duration;
+mod logger;
 
 use loader::PluginLoader;
 use plugin::SamplePlugin;
+use std::sync::mpsc::RecvTimeoutError;
+use std::{process::ExitCode, time::Duration};
 use thorn::engine::{
     core::{Core, CoreMsg, CorePlugin},
     event::{EngineEvent, EventEmitterPlugin, EventReceiverPlugin},
@@ -13,8 +18,12 @@ use thorn::engine::{
 
 fn main()
 {
-    let mut loader = PluginLoader::new();
+    if let Err(e) = logger::init()
+    {
+        eprintln!("ERROR: Failed to initialize logger: {e}");
+    }
 
+    let mut loader = PluginLoader::new();
     let (sender, core) = std::sync::mpsc::channel();
 
     // Engine Plugins
@@ -28,7 +37,12 @@ fn main()
     loader.discover_plugin(SamplePlugin);
 
     // Load all plugins
-    loader.load_all().unwrap();
+    if loader.load_all().is_err()
+    {
+        log::error!("Failed to resolve plugin dependencies. exting");
+        loader.unload_all();
+        ExitCode::FAILURE.exit_process();
+    }
 
     loop
     {
@@ -38,8 +52,10 @@ fn main()
             Ok(CoreMsg::Dispatch(event)) => loader.registry_mut().dispatch(event),
 
             // Check if the main loop is still alive on timeout
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) =>
+            Err(RecvTimeoutError::Timeout) =>
             {
+                log::warn!("Core loop connection timed out...");
+
                 if !loader
                     .registry_mut()
                     .get::<Core>()
@@ -48,15 +64,25 @@ fn main()
                     .unwrap()
                     .is_alive()
                 {
+                    log::error!("Core loop seems to have crashed. Exiting");
                     break;
                 }
             }
 
-            // break if the core connection drops or a termination msg is send.
-            Err(_) | Ok(CoreMsg::Terminate) => break,
+            // Exit if the core loop connection drops
+            Err(RecvTimeoutError::Disconnected) =>
+            {
+                log::error!("Core loop seems to have crashed. Exiting");
+                break;
+            }
+
+            // Exit if termination msg is received
+            Ok(CoreMsg::Terminate) => break,
         }
     }
 
     // unload all plugins...
     loader.unload_all();
+
+    log::info!("Exiting. Good Bye.");
 }

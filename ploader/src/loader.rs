@@ -141,9 +141,10 @@ impl PluginLoader
 
     fn load_plugin(&mut self, mut plugin: Plug) -> ThResult<()>
     {
-        println!(
+        log::info!(
             "Loading Plugin {} version {}",
-            plugin.info.name, plugin.info.version
+            plugin.info.name,
+            plugin.info.version
         );
 
         match plugin.plugin.load(&self.registry)
@@ -170,9 +171,10 @@ impl PluginLoader
 
     fn unload_plugin(&mut self, mut plugin: Plug)
     {
-        println!(
+        log::info!(
             "Unloading Plugin {} version {}",
-            plugin.info.name, plugin.info.version
+            plugin.info.name,
+            plugin.info.version
         );
 
         plugin.plugin.notify_unloaded(&self.registry);
