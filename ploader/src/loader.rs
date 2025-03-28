@@ -6,13 +6,13 @@ use thorn::prelude::*;
 pub struct Plug
 {
     pub info: PluginInfo,
-    pub plugin: Box<dyn Plugin<LayerEvent>>,
+    pub plugin: Box<dyn Plugin<LayerEvent> + Send + Sync>,
 }
 
 
 impl Plug
 {
-    fn new(plugin: impl Plugin<LayerEvent> + 'static) -> Self
+    fn new(plugin: impl Plugin<LayerEvent> + Send + Sync + 'static) -> Self
     {
         Self {
             info: plugin.info(),
@@ -57,7 +57,10 @@ impl PluginLoader
         &mut self.registry
     }
 
-    pub fn discover_plugin(&mut self, plugin: impl Plugin<LayerEvent> + 'static) -> Option<Plug>
+    pub fn discover_plugin(
+        &mut self,
+        plugin: impl Plugin<LayerEvent> + Send + Sync + 'static,
+    ) -> Option<Plug>
     {
         let plug = Plug::new(plugin);
 
