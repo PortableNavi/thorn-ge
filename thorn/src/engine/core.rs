@@ -16,6 +16,33 @@ pub enum CoreMsg
 }
 
 
+pub trait CoreHook: Send + Sync
+{
+    fn prepare(&mut self) {}
+    fn tick(&mut self, _frame_info: &FrameInfo) {}
+    fn finish(&mut self) {}
+}
+
+
+impl<T: CoreHook + Send + Sync> CoreHook for Layer<T>
+{
+    fn prepare(&mut self)
+    {
+        self.write().unwrap().prepare()
+    }
+
+    fn tick(&mut self, info: &FrameInfo)
+    {
+        self.write().unwrap().tick(info)
+    }
+
+    fn finish(&mut self)
+    {
+        self.write().unwrap().finish();
+    }
+}
+
+
 pub struct CorePlugin(pub Sender<CoreMsg>);
 impl Plugin<LayerEvent> for CorePlugin
 {
@@ -55,6 +82,7 @@ enum MainLoopMsg
     Terminate,
     SetFpsCap(u32),
     SetTasks(Vec<MainLoopTask>),
+    AddHooks(Vec<Box<dyn CoreHook>>),
 }
 
 
@@ -76,6 +104,7 @@ pub struct Core
     loader: Sender<CoreMsg>,
     main_loop: Option<MainLoop>,
     tasks: Option<Vec<MainLoopTask>>,
+    hooks: Option<Vec<Box<dyn CoreHook>>>,
 }
 
 impl Core
@@ -87,6 +116,7 @@ impl Core
             loader,
             main_loop: None,
             tasks: None,
+            hooks: None,
         }
     }
 
@@ -137,6 +167,18 @@ impl Core
         }
     }
 
+    pub(crate) fn add_hook(&mut self, hook: impl CoreHook + 'static)
+    {
+        if self.hooks.is_none()
+        {
+            self.hooks = Some(vec![Box::new(hook)])
+        }
+        else
+        {
+            self.hooks.as_mut().unwrap().push(Box::new(hook));
+        }
+    }
+
     fn start_main_loop(&mut self, core: Layer<Core>)
     {
         // I'd rather crash than have 2 main loops...
@@ -158,6 +200,17 @@ impl Core
             if let Some(m) = &self.main_loop
             {
                 let _ = m.conn.send(MainLoopMsg::SetTasks(tasks));
+            }
+        }
+    }
+
+    fn hand_over_hooks(&mut self)
+    {
+        if let Some(hooks) = self.hooks.take()
+        {
+            if let Some(m) = &self.main_loop
+            {
+                let _ = m.conn.send(MainLoopMsg::AddHooks(hooks));
             }
         }
     }
@@ -187,6 +240,7 @@ impl LayerDispatch<LayerEvent> for Core
         if let LayerEvent::Tick(_) = event
         {
             self.hand_over_tasks();
+            self.hand_over_hooks();
         }
     }
 }
@@ -198,44 +252,57 @@ fn main_loop(core: Layer<Core>, msg: Receiver<MainLoopMsg>)
     // because at completly uncapped fps things start to break...
     const MIN_FRAME_TIME: Duration = Duration::from_millis(1);
 
-    #[allow(unused)]
     let mut delta = Duration::from_secs(0);
     let mut fps_cap = Duration::from_secs_f64(1.0 / 120.0);
     let mut tasks = vec![];
+    let mut hooks = vec![];
 
-    loop
+    'mainloop: loop
     {
         let frame_start = Instant::now();
 
-        match msg.try_recv()
+        // Dispatch all new messages...
+        'msgloop: loop
         {
-            Ok(MainLoopMsg::SetFpsCap(cap)) =>
+            match msg.try_recv()
             {
-                fps_cap = {
-                    let target_frame_time = Duration::from_secs_f64(1.0 / cap as f64);
+                Ok(MainLoopMsg::SetFpsCap(cap)) =>
+                {
+                    fps_cap = {
+                        let target_frame_time = Duration::from_secs_f64(1.0 / cap as f64);
 
-                    if target_frame_time < MIN_FRAME_TIME
-                    {
-                        log::warn!(
-                            "Warning: Framerate cap is above 1000 FPS. Capping at 1000 FPS..."
-                        );
-                        MIN_FRAME_TIME
-                    }
-                    else
-                    {
-                        target_frame_time
+                        if target_frame_time < MIN_FRAME_TIME
+                        {
+                            log::warn!(
+                                "Warning: Framerate cap is above 1000 FPS. Capping at 1000 FPS..."
+                            );
+                            MIN_FRAME_TIME
+                        }
+                        else
+                        {
+                            target_frame_time
+                        }
                     }
                 }
+
+                // Receive all new hooks...
+                Ok(MainLoopMsg::AddHooks(h)) => hooks.extend(h),
+
+                // Add newly received tasks to the task queue
+                Ok(MainLoopMsg::SetTasks(t)) => tasks.extend(t),
+
+                // Do nothing if there is no msg.
+                Err(TryRecvError::Empty) => break 'msgloop,
+
+                // Break the mainloop if the loader drops its channel or if a termination msg is sent.
+                Err(TryRecvError::Disconnected) | Ok(MainLoopMsg::Terminate) => break 'mainloop,
             }
+        }
 
-            // Add newly received tasks to the task queue
-            Ok(MainLoopMsg::SetTasks(t)) => tasks.extend(t),
-
-            // Do nothing if there is no msg.
-            Err(TryRecvError::Empty) => (),
-
-            // Break the mainloop if the loader drops its channel or if a termination msg is sent.
-            Err(TryRecvError::Disconnected) | Ok(MainLoopMsg::Terminate) => break,
+        // Run all Frame preparation hooks
+        for hook in &mut hooks
+        {
+            hook.prepare();
         }
 
         // Tick events to all layers before any work in the main loop...
@@ -246,6 +313,12 @@ fn main_loop(core: Layer<Core>, msg: Receiver<MainLoopMsg>)
 
         let frame_info = FrameInfo { delta };
 
+        // Run all frame tick hooks
+        for hook in &mut hooks
+        {
+            hook.tick(&frame_info);
+        }
+
         // TODO: Maybe figure out something more smart with the tasks...
         while let Some(task) = tasks.pop()
         {
@@ -253,6 +326,12 @@ fn main_loop(core: Layer<Core>, msg: Receiver<MainLoopMsg>)
             {
                 log::error!("Error while executing task in main loop: {e:?}");
             }
+        }
+
+        // Run all frame end hooks
+        for hook in &mut hooks
+        {
+            hook.finish();
         }
 
         // FRAME END

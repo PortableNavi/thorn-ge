@@ -62,8 +62,8 @@ where
 pub struct AnyLayer<E>
 {
     id: TypeId,
-    dispatch: Arc<RwLock<dyn LayerDispatch<E>>>,
-    layer: Box<dyn Any>,
+    dispatch: Arc<RwLock<dyn LayerDispatch<E> + Send + Sync>>,
+    layer: Box<dyn Any + Send + Sync>,
 }
 
 
