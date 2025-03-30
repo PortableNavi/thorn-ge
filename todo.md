@@ -19,3 +19,6 @@
   * [x] `6.1` Open a winit window and receive events
   * [ ] `6.2` Allow window configuration
   * [ ] `6.3` Think about input device handling
+
+### `7` Renderer
+  * [ ] `7.1` Initialize a renderer skeleton
