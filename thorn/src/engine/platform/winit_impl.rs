@@ -5,6 +5,7 @@ use winit::{
     dpi::{LogicalPosition, LogicalSize},
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
+    raw_window_handle::HasWindowHandle,
     window::Window,
 };
 
@@ -14,6 +15,8 @@ pub struct ThornWindow
     params: WindowParams,
     window: Option<Window>,
     event_emitter: Layer<EventEmitter<PlatformEvent>>,
+    renderer: Layer<Renderer>,
+    is_renderer_initialized: bool,
 }
 
 
@@ -21,13 +24,28 @@ impl ApplicationHandler<WinitMsg> for ThornWindow
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop)
     {
-        //TODO: Initialize renderer here (once)
-        //TODO: Create new surface
-
         if self.window.is_none()
         {
             self.create_window(event_loop);
         }
+
+        if !self.is_renderer_initialized
+        {
+            match self.renderer.write().unwrap().initialize(
+                self.window
+                    .as_mut()
+                    .unwrap()
+                    .window_handle()
+                    .expect("No Window handle...")
+                    .as_raw(),
+            )
+            {
+                Err(e) => log::error!("Failed to initialize renderer: {e}"),
+                Ok(_) => self.is_renderer_initialized = true,
+            }
+        }
+
+        //TODO: Create new surface
     }
 
     fn window_event(
@@ -141,11 +159,17 @@ impl ThornWindow
         Ok((event_loop, proxy))
     }
 
-    pub fn new(params: WindowParams, event_emitter: Layer<EventEmitter<PlatformEvent>>) -> Self
+    pub fn new(
+        params: WindowParams,
+        event_emitter: Layer<EventEmitter<PlatformEvent>>,
+        renderer: Layer<Renderer>,
+    ) -> Self
     {
         Self {
             params,
             event_emitter,
+            renderer,
+            is_renderer_initialized: false,
             window: None,
         }
     }

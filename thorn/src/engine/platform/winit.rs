@@ -13,7 +13,9 @@ impl Plugin<LayerEvent> for PlatformPlugin
 {
     fn info(&self) -> PluginInfo
     {
-        PluginInfo::build::<Platform>().dep::<EventEmitter<PlatformEvent>>()
+        PluginInfo::build::<Platform>()
+            .dep::<EventEmitter<PlatformEvent>>()
+            .dep::<Renderer>()
     }
 
     fn load(
