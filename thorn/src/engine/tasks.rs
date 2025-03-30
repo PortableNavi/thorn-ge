@@ -103,6 +103,11 @@ impl Tasks
         id
     }
 
+    pub fn hook(&mut self, hook: impl CoreHook + 'static)
+    {
+        self.core.write().unwrap().add_hook(hook);
+    }
+
     pub fn cancel(&mut self, task: u64)
     {
         self.tasks.retain(|e| e.id != task);

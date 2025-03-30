@@ -6,7 +6,7 @@ pub mod tasks;
 
 pub mod prelude
 {
-    pub use super::core::{Core, FrameInfo};
+    pub use super::core::{Core, CoreHook, FrameInfo};
     pub use super::event::{EventEmitter, EventReceiver};
     pub use super::gobject_manager::{Gobject, GobjectManager};
     pub use super::platform::{Platform, PlatformEvent, WindowParams};
