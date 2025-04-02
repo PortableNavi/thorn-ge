@@ -1,4 +1,4 @@
-use winit::raw_window_handle::RawWindowHandle;
+use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 use super::{api::RenderAPI, vulkan::VulkanRenderer};
 use crate::prelude::*;
@@ -80,9 +80,9 @@ impl Renderer
         self.api.destroy();
     }
 
-    pub fn initialize(&mut self, rwh: RawWindowHandle) -> ThResult<()>
+    pub fn initialize(&mut self, rdh: RawDisplayHandle, rwh: RawWindowHandle) -> ThResult<()>
     {
-        self.api.initialize(rwh)
+        self.api.initialize(rdh, rwh)
     }
 }
 

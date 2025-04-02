@@ -5,7 +5,7 @@ use winit::{
     dpi::{LogicalPosition, LogicalSize},
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-    raw_window_handle::HasWindowHandle,
+    raw_window_handle::{HasDisplayHandle, HasWindowHandle},
     window::Window,
 };
 
@@ -31,13 +31,10 @@ impl ApplicationHandler<WinitMsg> for ThornWindow
 
         if !self.is_renderer_initialized
         {
+            let win = self.window.as_mut().unwrap();
             match self.renderer.write().unwrap().initialize(
-                self.window
-                    .as_mut()
-                    .unwrap()
-                    .window_handle()
-                    .expect("No Window handle...")
-                    .as_raw(),
+                win.display_handle().expect("No Display handle...").as_raw(),
+                win.window_handle().expect("No window handle...").as_raw(),
             )
             {
                 Err(e) => log::error!("Failed to initialize renderer: {e}"),

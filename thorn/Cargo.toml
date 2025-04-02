@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 ash = "0.38.0"
+ash-window = "0.13.0"
 ctrlc = "3.4.5"
 log = "0.4.26"
 thiserror = "2.0.12"
