@@ -1,6 +1,3 @@
-#![allow(unused)] // Until the renderer is more mature...
-
-
 use std::{
     collections::HashSet,
     ffi::{CStr, c_char, c_void},

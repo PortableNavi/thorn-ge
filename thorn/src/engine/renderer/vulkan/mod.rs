@@ -1,4 +1,6 @@
 mod instance;
+mod surface;
+
 
 use super::api::RenderAPI;
 use crate::prelude::*;
@@ -35,12 +37,23 @@ impl RenderAPI for VulkanRenderer
             self.reg.insert(instance::Instance::new(rdh, rwh, &[])?);
         }
 
+        if self.reg.get::<surface::Surface>().is_none()
+        {
+            let surf = surface::Surface::new(&mut self.reg)?;
+            self.reg.insert(surf);
+        }
+
         log::info!("Vulkan Renderer Initialized");
         Ok(())
     }
 
     fn destroy(&mut self)
     {
+        if let Some(surface) = self.reg.get::<surface::Surface>()
+        {
+            surface.write().unwrap().destroy();
+        }
+
         if let Some(instance) = self.reg.get::<instance::Instance>()
         {
             instance.write().unwrap().destroy();
