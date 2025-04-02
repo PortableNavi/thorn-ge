@@ -58,6 +58,11 @@ impl<E> LayerReg<E>
             .map(|l| Layer::try_from(l).unwrap())
     }
 
+    pub fn get_unchecked<T: Send + Sync + 'static>(&self) -> Layer<T>
+    {
+        self.get().unwrap()
+    }
+
     pub fn remove<T: Send + Sync + 'static>(&mut self) -> Option<Layer<T>>
     {
         self.layers

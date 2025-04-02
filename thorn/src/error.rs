@@ -21,4 +21,7 @@ pub enum ThError
 
     #[error("{0}")]
     RendererError(String),
+
+    #[error("{0}")]
+    VulkanError(#[from] ash::vk::Result),
 }
