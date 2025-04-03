@@ -31,7 +31,7 @@ fn get_log_file(default: &str) -> String
 
 pub fn init() -> ThResult<()>
 {
-    fern::Dispatch::new()
+    let mut dispatch_chain = fern::Dispatch::new()
         .format(|out, msg, record| {
             out.finish(format_args!(
                 "[{}::{}:{}] {}",
@@ -42,11 +42,17 @@ pub fn init() -> ThResult<()>
             ))
         })
         .level(get_level(LevelFilter::Debug))
-        .chain(std::io::stdout())
         .chain(
             fern::log_file(get_log_file(&format!("{}.log", env!("CARGO_CRATE_NAME"))))
                 .map_err(|e| ThError::Error(e.to_string()))?,
-        )
+        );
+
+    if !var("THORN_NO_STD_LOG").is_ok()
+    {
+        dispatch_chain = dispatch_chain.chain(std::io::stdout());
+    }
+
+    dispatch_chain
         .apply()
         .map_err(|e| ThError::Error(e.to_string()))?;
 

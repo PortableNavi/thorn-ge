@@ -38,16 +38,16 @@ impl RenderAPI for VulkanRenderer
             self.reg.insert(instance::Instance::new(rdh, rwh, &[])?);
         }
 
-        if self.reg.get::<physical_device::PhysicalDevice>().is_none()
-        {
-            let device = physical_device::PhysicalDevice::new(&mut self.reg)?;
-            self.reg.insert(device);
-        }
-
         if self.reg.get::<surface::Surface>().is_none()
         {
             let surf = surface::Surface::new(&mut self.reg)?;
             self.reg.insert(surf);
+        }
+
+        if self.reg.get::<physical_device::PhysicalDevice>().is_none()
+        {
+            let device = physical_device::PhysicalDevice::new(&mut self.reg)?;
+            self.reg.insert(device);
         }
 
         log::info!("Vulkan Renderer Initialized");
