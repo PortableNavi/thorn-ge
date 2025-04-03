@@ -8,20 +8,21 @@ use std::cmp::Ordering;
 #[derive(Clone)]
 pub struct PhysicalDeviceProps
 {
-    device_name: String,
-    graphics_queue: Option<u32>,
-    present_queue: Option<u32>,
-    compute_queue: Option<u32>,
-    transfer_queue: Option<u32>,
-    has_sampler_anisotropy: bool,
-    is_discrete: bool,
-    extension_names: Vec<String>,
+    pub device_name: String,
+    pub graphics_queue: Option<u32>,
+    pub present_queue: Option<u32>,
+    pub compute_queue: Option<u32>,
+    pub transfer_queue: Option<u32>,
+    pub has_sampler_anisotropy: bool,
+    pub is_discrete: bool,
+    pub extension_names: Vec<String>,
 
     #[allow(unused)]
-    surface_capabilities: vk::SurfaceCapabilitiesKHR,
+    pub surface_capabilities: vk::SurfaceCapabilitiesKHR,
 
-    surface_formats: Vec<vk::SurfaceFormatKHR>,
-    present_modes: Vec<vk::PresentModeKHR>,
+    pub features: vk::PhysicalDeviceFeatures,
+    pub surface_formats: Vec<vk::SurfaceFormatKHR>,
+    pub present_modes: Vec<vk::PresentModeKHR>,
 }
 
 
@@ -146,6 +147,7 @@ impl PhysicalDeviceProps
             present_modes,
             surface_formats,
             extension_names,
+            features,
             has_sampler_anisotropy: features.sampler_anisotropy != 0,
         };
 
@@ -254,6 +256,7 @@ impl Default for PhysicalDeviceProps
             surface_capabilities: vk::SurfaceCapabilitiesKHR::default(),
             surface_formats: vec![],
             present_modes: vec![vk::PresentModeKHR::MAILBOX],
+            features: vk::PhysicalDeviceFeatures::default(),
         }
     }
 }
@@ -269,13 +272,13 @@ pub struct PhysicalDevice
 
 impl PhysicalDevice
 {
-    pub fn new(reg: &mut LayerReg<()>) -> ThResult<Self>
+    pub fn new(reg: &LayerReg<()>) -> ThResult<Self>
     {
         let instance = reg.get_unchecked::<Instance>();
-        let instance = instance.write().unwrap();
+        let instance = instance.read().unwrap();
 
         let surface = reg.get_unchecked::<Surface>();
-        let surface = surface.write().unwrap();
+        let surface = surface.read().unwrap();
 
         let requirements = PhysicalDeviceProps::default();
 

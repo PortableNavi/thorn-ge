@@ -12,7 +12,7 @@ pub struct Surface
 
 impl Surface
 {
-    pub fn new(reg: &mut LayerReg<()>) -> ThResult<Self>
+    pub fn new(reg: &LayerReg<()>) -> ThResult<Self>
     {
         let instance = reg.get_unchecked::<Instance>();
         let instance = instance.read().unwrap();

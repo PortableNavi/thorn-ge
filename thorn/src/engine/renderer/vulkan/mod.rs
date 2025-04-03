@@ -1,4 +1,5 @@
 mod instance;
+mod logical_device;
 mod physical_device;
 mod surface;
 
@@ -40,13 +41,19 @@ impl RenderAPI for VulkanRenderer
 
         if self.reg.get::<surface::Surface>().is_none()
         {
-            let surf = surface::Surface::new(&mut self.reg)?;
+            let surf = surface::Surface::new(&self.reg)?;
             self.reg.insert(surf);
         }
 
         if self.reg.get::<physical_device::PhysicalDevice>().is_none()
         {
-            let device = physical_device::PhysicalDevice::new(&mut self.reg)?;
+            let device = physical_device::PhysicalDevice::new(&self.reg)?;
+            self.reg.insert(device);
+        }
+
+        if self.reg.get::<logical_device::LogicalDevice>().is_none()
+        {
+            let device = logical_device::LogicalDevice::new(&self.reg)?;
             self.reg.insert(device);
         }
 
@@ -56,6 +63,11 @@ impl RenderAPI for VulkanRenderer
 
     fn destroy(&mut self)
     {
+        if let Some(logical_device) = self.reg.get::<logical_device::LogicalDevice>()
+        {
+            logical_device.write().unwrap().destroy();
+        }
+
         if let Some(physical_device) = self.reg.get::<physical_device::PhysicalDevice>()
         {
             physical_device.write().unwrap().destroy();
