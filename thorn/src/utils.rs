@@ -50,11 +50,19 @@ impl MsgBoxThread
 
     fn msg_work(msgs: Arc<Mutex<Vec<String>>>)
     {
-        let msgs = msgs.lock().unwrap().drain(..).collect::<Vec<_>>();
-
-        for msg in msgs
+        loop
         {
-            Self::show_msg_box(msg);
+            let msgs = msgs.lock().unwrap().drain(..).collect::<Vec<_>>();
+
+            if msgs.is_empty()
+            {
+                break;
+            }
+
+            for msg in msgs
+            {
+                Self::show_msg_box(msg);
+            }
         }
     }
 
