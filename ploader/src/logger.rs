@@ -47,7 +47,7 @@ pub fn init() -> ThResult<()>
                 .map_err(|e| ThError::Error(e.to_string()))?,
         );
 
-    if !var("THORN_NO_STD_LOG").is_ok()
+    if var("THORN_NO_STD_LOG").is_err()
     {
         dispatch_chain = dispatch_chain.chain(std::io::stdout());
     }

@@ -174,7 +174,7 @@ impl PhysicalDeviceProps
 
         for name in &self.extension_names
         {
-            if !props.extension_names.contains(&name)
+            if !props.extension_names.contains(name)
             {
                 log::error!(
                     "One GPU {dname:?} was not useable because of missing vulkan extension support for: {name}"
@@ -198,17 +198,18 @@ impl PhysicalDeviceProps
             return None;
         }
 
-        if self.present_modes.is_empty() || self.surface_formats.is_empty()
+        if props.present_modes.is_empty() || props.surface_formats.is_empty()
         {
             log::error!(
-                "One GPU {dname:?} was not useable because it does not have amy present modes ot does not have a surface format"
+                "One GPU {dname:?} was not useable because it does not have any present modes ot does not have a surface format"
             );
+            return None;
         }
 
-        if (!self.graphics_queue.is_some() || props.graphics_queue.is_some())
-            && (!self.present_queue.is_some() || props.present_queue.is_some())
-            && (!self.compute_queue.is_some() || props.compute_queue.is_some())
-            && (!self.transfer_queue.is_some() || props.transfer_queue.is_some())
+        if (self.graphics_queue.is_none() || props.graphics_queue.is_some())
+            && (self.present_queue.is_none() || props.present_queue.is_some())
+            && (self.compute_queue.is_none() || props.compute_queue.is_some())
+            && (self.transfer_queue.is_none() || props.transfer_queue.is_some())
         {
             log::info!("Found usable GPU {dname:?}");
             Some((device, props))
