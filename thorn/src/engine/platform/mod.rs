@@ -40,7 +40,7 @@ impl Default for WindowParams
     fn default() -> Self
     {
         Self {
-            title: "Thorn".into(),
+            title: std::option_env!("THORN_APP_NAME").unwrap_or("Thorn").into(),
             position: None,
             size: (800, 600),
         }

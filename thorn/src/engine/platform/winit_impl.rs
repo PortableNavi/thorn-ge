@@ -1,5 +1,5 @@
 use super::winit::WinitMsg;
-use crate::prelude::*;
+use crate::{prelude::*, utils::show_msg_box};
 use winit::{
     application::ApplicationHandler,
     dpi::{LogicalPosition, LogicalSize},
@@ -29,7 +29,7 @@ impl ApplicationHandler<WinitMsg> for ThornWindow
             self.create_window(event_loop);
         }
 
-        if !self.is_renderer_initialized
+        if !self.is_renderer_initialized && !event_loop.exiting()
         {
             let win = self.window.as_mut().unwrap();
             match self.renderer.write().unwrap().initialize(
@@ -37,7 +37,12 @@ impl ApplicationHandler<WinitMsg> for ThornWindow
                 win.window_handle().expect("No window handle...").as_raw(),
             )
             {
-                Err(e) => log::error!("Failed to initialize renderer: {e}"),
+                Err(e) =>
+                {
+                    log::error!("Failed to initialize renderer: {e}");
+                    show_msg_box("ERROR: Failed to initialize the renderer");
+                }
+
                 Ok(_) => self.is_renderer_initialized = true,
             }
         }
@@ -142,6 +147,12 @@ impl ThornWindow
                     .unwrap()
                     .emit(PlatformEvent::PlatformError(e.to_string()))
             }
+        }
+
+        if self.window.is_none()
+        {
+            show_msg_box("ERROR: Failed to open a window");
+            event_loop.exit();
         }
     }
 

@@ -70,8 +70,10 @@ fn main()
         loader.registry_mut().get().unwrap(),
     );
 
+    let core_layer = loader.registry_mut().get_unchecked::<Core>();
     let plugin_manager_handle = thread::spawn(move || manage_plugins(loader, core));
     window.run(winit);
+    core_layer.read().unwrap().terminate();
 
     if let Err(e) = plugin_manager_handle.join()
     {
