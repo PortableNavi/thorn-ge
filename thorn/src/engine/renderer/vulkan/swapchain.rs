@@ -147,7 +147,7 @@ impl Swapchain
             .swapchains(swapchains)
             .image_indices(image_indices);
 
-        let queue = self.device.read().unwrap().present_queue.clone();
+        let queue = self.device.read().unwrap().present_queue;
 
         if let Some(q) = queue
         {
@@ -198,7 +198,7 @@ impl Swapchain
                     e.format == vk::Format::B8G8R8A8_UNORM
                         && e.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
                 })
-                .unwrap_or(formats.get(0).ok_or(ThError::RendererError(
+                .unwrap_or(formats.first().ok_or(ThError::RendererError(
                     "No Supported Surface format found".into(),
                 ))?)
         };
@@ -210,8 +210,7 @@ impl Swapchain
             .props
             .present_modes
             .iter()
-            .find(|m| **m == vk::PresentModeKHR::MAILBOX)
-            .map(|e| *e)
+            .find(|m| **m == vk::PresentModeKHR::MAILBOX).copied()
             .unwrap_or(vk::PresentModeKHR::FIFO);
 
         self.physical_device.write().unwrap().update_capabilities();
@@ -272,8 +271,7 @@ impl Swapchain
             .read()
             .unwrap()
             .props
-            .depth_formats
-            .get(0)
+            .depth_formats.first()
             .ok_or(ThError::RendererError(
                 "Failed to select a depth format".into(),
             ))?;

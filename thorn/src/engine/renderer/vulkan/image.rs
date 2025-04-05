@@ -19,6 +19,7 @@ pub struct VkImage2D
 
 impl VkImage2D
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         device: Layer<LogicalDevice>,
         width: u32,
@@ -134,7 +135,7 @@ impl VkImage2D
             unsafe { device.destroy_image_view(view, None) };
         }
 
-        let _ = unsafe { device.free_memory(self.memory, None) };
-        let _ = unsafe { device.destroy_image(self.image, None) };
+        unsafe { device.free_memory(self.memory, None) };
+        unsafe { device.destroy_image(self.image, None) };
     }
 }

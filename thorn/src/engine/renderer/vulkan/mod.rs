@@ -1,3 +1,7 @@
+// Until the basic renderer is finished...
+#![allow(unused)]
+
+
 mod image;
 mod instance;
 mod logical_device;
