@@ -1,11 +1,13 @@
-use std::{collections::HashSet, ops::Add};
+use std::collections::HashSet;
 
 use super::{
+    image::VkImage2D,
     instance::Instance,
     logical_device::LogicalDevice,
     physical_device::PhysicalDevice,
     surface::Surface,
 };
+
 use crate::prelude::*;
 use ash::vk::{self, Handle};
 
@@ -19,11 +21,13 @@ pub struct Swapchain
     pub width: u32,
     pub height: u32,
     pub image_format: vk::SurfaceFormatKHR,
+    pub depth_buffer_format: vk::Format,
     pub max_buffered_frames: u32,
     pub swapchain: vk::SwapchainKHR,
     pub swapchain_device: ash::khr::swapchain::Device,
     pub images: Vec<vk::Image>,
     pub views: Vec<vk::ImageView>,
+    pub depth_buffer: VkImage2D,
 
     device: Layer<LogicalDevice>,
     physical_device: Layer<PhysicalDevice>,
@@ -48,7 +52,9 @@ impl Swapchain
         let mut me = Self {
             width,
             height,
+            depth_buffer: VkImage2D::default(),
             swapchain_device,
+            depth_buffer_format: vk::Format::default(),
             image_format: vk::SurfaceFormatKHR::default(),
             max_buffered_frames: 2,
             swapchain: vk::SwapchainKHR::null(),
@@ -261,6 +267,28 @@ impl Swapchain
 
         let queues = queues.into_iter().collect::<Vec<_>>();
 
+        let depth_format = *self
+            .physical_device
+            .read()
+            .unwrap()
+            .props
+            .depth_formats
+            .get(0)
+            .ok_or(ThError::RendererError(
+                "Failed to select a depth format".into(),
+            ))?;
+
+        let depth_buffer = VkImage2D::new(
+            self.device.clone(),
+            self.width,
+            self.height,
+            depth_format,
+            vk::ImageTiling::OPTIMAL,
+            vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            vk::ImageAspectFlags::DEPTH,
+        )?;
+
         let create_info = vk::SwapchainCreateInfoKHR::default()
             .queue_family_indices(&queues)
             .image_sharing_mode(sharing_mode)
@@ -281,11 +309,45 @@ impl Swapchain
             });
 
         let swapchain = unsafe { self.swapchain_device.create_swapchain(&create_info, None) }?;
+        let images = unsafe { self.swapchain_device.get_swapchain_images(swapchain)? };
 
+        let mut views = vec![];
+        for img in &images
+        {
+            let create_info = vk::ImageViewCreateInfo::default()
+                .view_type(vk::ImageViewType::TYPE_2D)
+                .format(format.format)
+                .image(*img)
+                .subresource_range(
+                    vk::ImageSubresourceRange::default()
+                        .aspect_mask(vk::ImageAspectFlags::COLOR)
+                        .base_mip_level(0)
+                        .level_count(1)
+                        .base_array_layer(0)
+                        .layer_count(1),
+                );
+
+            let view = unsafe {
+                self.device
+                    .read()
+                    .unwrap()
+                    .logical_device
+                    .create_image_view(&create_info, None)
+            }?;
+
+            views.push(view);
+        }
+
+        // Destroy old resources...
         self.soft_destroy()?;
 
+        // Assign the new resources...
         self.image_format = format;
+        self.images = images;
+        self.views = views;
+        self.depth_buffer_format = depth_format;
         self.swapchain = swapchain;
+        self.depth_buffer = depth_buffer;
 
         Ok(())
     }
@@ -297,6 +359,20 @@ impl Swapchain
             {
                 self.swapchain_device
                     .destroy_swapchain(self.swapchain, None);
+            }
+
+            while let Some(view) = self.views.pop()
+            {
+                self.device
+                    .read()
+                    .unwrap()
+                    .logical_device
+                    .destroy_image_view(view, None);
+            }
+
+            if !self.depth_buffer.image.is_null()
+            {
+                self.depth_buffer.destroy(self.device.clone());
             }
         }
 

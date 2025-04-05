@@ -23,6 +23,8 @@ pub struct PhysicalDeviceProps
     pub features: vk::PhysicalDeviceFeatures,
     pub surface_formats: Vec<vk::SurfaceFormatKHR>,
     pub present_modes: Vec<vk::PresentModeKHR>,
+    pub depth_formats: Vec<vk::Format>,
+    pub memory: vk::PhysicalDeviceMemoryProperties,
 }
 
 
@@ -33,11 +35,11 @@ impl PhysicalDeviceProps
         let props = unsafe { instance.instance.get_physical_device_properties(device) };
         let features = unsafe { instance.instance.get_physical_device_features(device) };
 
-        // let memory = unsafe {
-        //     instance
-        //         .instance
-        //         .get_physical_device_memory_properties(device)
-        // };
+        let memory = unsafe {
+            instance
+                .instance
+                .get_physical_device_memory_properties(device)
+        };
 
         // Get the device name
         let device_name = props
@@ -136,7 +138,39 @@ impl PhysicalDeviceProps
         })
         .collect();
 
+        // sorted by preference...
+        let depth_formats_to_test = &[
+            vk::Format::D32_SFLOAT,
+            vk::Format::D32_SFLOAT_S8_UINT,
+            vk::Format::D24_UNORM_S8_UINT,
+        ];
+
+        let mut depth_formats = vec![];
+
+        for format in depth_formats_to_test
+        {
+            let props = unsafe {
+                instance
+                    .instance
+                    .get_physical_device_format_properties(device, *format)
+            };
+
+            // Sort out the formats that are unsupported...
+            if !props
+                .linear_tiling_features
+                .contains(vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT)
+                && !props
+                    .optimal_tiling_features
+                    .contains(vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT)
+            {
+                continue;
+            }
+
+            depth_formats.push(*format);
+        }
+
         let props = Self {
+            memory,
             device_name,
             is_discrete,
             graphics_queue,
@@ -148,6 +182,7 @@ impl PhysicalDeviceProps
             surface_formats,
             extension_names,
             features,
+            depth_formats,
             has_sampler_anisotropy: features.sampler_anisotropy != 0,
         };
 
@@ -180,6 +215,18 @@ impl PhysicalDeviceProps
             {
                 log::error!(
                     "One GPU {dname:?} was not useable because of missing vulkan extension support for: {name}"
+                );
+
+                return None;
+            }
+        }
+
+        for format in &self.depth_formats
+        {
+            if !props.depth_formats.contains(format)
+            {
+                log::error!(
+                    "One GPU {dname:?} was not usable because it did not support a required depth format {format:?}"
                 );
 
                 return None;
@@ -245,6 +292,7 @@ impl Default for PhysicalDeviceProps
     fn default() -> Self
     {
         Self {
+            memory: vk::PhysicalDeviceMemoryProperties::default(),
             device_name: String::new(),
             graphics_queue: Some(0),
             present_queue: Some(0),
@@ -257,6 +305,11 @@ impl Default for PhysicalDeviceProps
             surface_formats: vec![],
             present_modes: vec![vk::PresentModeKHR::MAILBOX],
             features: vk::PhysicalDeviceFeatures::default(),
+            depth_formats: vec![
+                // vk::Format::D32_SFLOAT,
+                // vk::Format::D32_SFLOAT_S8_UINT,
+                // vk::Format::D24_UNORM_S8_UINT,
+            ],
         }
     }
 }

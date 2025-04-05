@@ -1,3 +1,4 @@
+mod image;
 mod instance;
 mod logical_device;
 mod physical_device;
@@ -118,11 +119,10 @@ impl RenderAPI for VulkanRenderer
 
     fn surface_size_changed(&mut self, w: u32, h: u32) -> ThResult<()>
     {
-        self.reg
-            .get_unchecked::<Swapchain>()
-            .write()
-            .unwrap()
-            .mark_dirty(w, h);
+        if let Some(swapchain) = self.reg.get::<Swapchain>()
+        {
+            swapchain.write().unwrap().mark_dirty(w, h);
+        }
 
         Ok(())
     }

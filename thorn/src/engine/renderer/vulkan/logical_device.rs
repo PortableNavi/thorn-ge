@@ -13,6 +13,8 @@ pub struct LogicalDevice
     pub present_queue: Option<vk::Queue>,
     pub compute_queue: Option<vk::Queue>,
     pub transfer_queue: Option<vk::Queue>,
+
+    memory: vk::PhysicalDeviceMemoryProperties,
 }
 
 
@@ -120,7 +122,23 @@ impl LogicalDevice
             present_queue,
             compute_queue,
             transfer_queue,
+            memory: device.props.memory,
         })
+    }
+
+    pub fn find_memtype_index(&self, filter: u32, flags: vk::MemoryPropertyFlags) -> ThResult<u32>
+    {
+        for (i, mtype) in self.memory.memory_types.iter().enumerate()
+        {
+            if mtype.property_flags.contains(flags) && filter & (1 << i) != 0
+            {
+                return Ok(i as u32);
+            }
+        }
+
+        Err(ThError::RendererError(
+            "Unable to this a gpu memory region".into(),
+        ))
     }
 
     pub fn destroy(&mut self)
