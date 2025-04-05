@@ -80,9 +80,15 @@ impl Renderer
         self.api.destroy();
     }
 
-    pub fn initialize(&mut self, rdh: RawDisplayHandle, rwh: RawWindowHandle) -> ThResult<()>
+    pub fn initialize(
+        &mut self,
+        rdh: RawDisplayHandle,
+        rwh: RawWindowHandle,
+        w: u32,
+        h: u32,
+    ) -> ThResult<()>
     {
-        self.api.initialize(rdh, rwh)
+        self.api.initialize(rdh, rwh, w, h)
     }
 }
 
@@ -93,7 +99,6 @@ impl LayerDispatch<LayerEvent> for Renderer
 }
 
 
-//TODO: To be implemented
 impl CoreHook for Renderer
 {
     fn prepare(&mut self)
@@ -113,8 +118,22 @@ impl CoreHook for Renderer
 }
 
 
-//TODO: To be implemented
 impl EventSubscriber<PlatformEvent> for Renderer
 {
-    fn receive_event(&mut self, _event: &PlatformEvent) {}
+    fn receive_event(&mut self, event: &PlatformEvent)
+    {
+        #[allow(clippy::single_match)]
+        match event
+        {
+            PlatformEvent::WindowSizeChange(w, h) =>
+            {
+                if let Err(e) = self.api.surface_size_changed(*w, *h)
+                {
+                    log::error!("{e}");
+                }
+            }
+
+            _ => (),
+        }
+    }
 }

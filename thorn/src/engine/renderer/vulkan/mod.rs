@@ -2,10 +2,16 @@ mod instance;
 mod logical_device;
 mod physical_device;
 mod surface;
+mod swapchain;
 
 
 use super::api::RenderAPI;
 use crate::prelude::*;
+use instance::Instance;
+use logical_device::LogicalDevice;
+use physical_device::PhysicalDevice;
+use surface::Surface;
+use swapchain::Swapchain;
 use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 
@@ -32,29 +38,37 @@ impl RenderAPI for VulkanRenderer
         &mut self,
         rdh: RawDisplayHandle,
         rwh: RawWindowHandle,
+        w: u32,
+        h: u32,
     ) -> crate::prelude::ThResult<()>
     {
-        if self.reg.get::<instance::Instance>().is_none()
+        if self.reg.get::<Instance>().is_none()
         {
-            self.reg.insert(instance::Instance::new(rdh, rwh, &[])?);
+            self.reg.insert(Instance::new(rdh, rwh, &[])?);
         }
 
-        if self.reg.get::<surface::Surface>().is_none()
+        if self.reg.get::<Surface>().is_none()
         {
-            let surf = surface::Surface::new(&self.reg)?;
+            let surf = Surface::new(&self.reg)?;
             self.reg.insert(surf);
         }
 
-        if self.reg.get::<physical_device::PhysicalDevice>().is_none()
+        if self.reg.get::<PhysicalDevice>().is_none()
         {
-            let device = physical_device::PhysicalDevice::new(&self.reg)?;
+            let device = PhysicalDevice::new(&self.reg)?;
             self.reg.insert(device);
         }
 
-        if self.reg.get::<logical_device::LogicalDevice>().is_none()
+        if self.reg.get::<LogicalDevice>().is_none()
         {
-            let device = logical_device::LogicalDevice::new(&self.reg)?;
+            let device = LogicalDevice::new(&self.reg)?;
             self.reg.insert(device);
+        }
+
+        if self.reg.get::<Swapchain>().is_none()
+        {
+            let swapchain = Swapchain::new(&self.reg, w, h)?;
+            self.reg.insert(swapchain);
         }
 
         log::info!("Vulkan Renderer Initialized");
@@ -63,22 +77,27 @@ impl RenderAPI for VulkanRenderer
 
     fn destroy(&mut self)
     {
-        if let Some(logical_device) = self.reg.get::<logical_device::LogicalDevice>()
+        if let Some(swapchain) = self.reg.get::<Swapchain>()
+        {
+            swapchain.write().unwrap().destroy();
+        }
+
+        if let Some(logical_device) = self.reg.get::<LogicalDevice>()
         {
             logical_device.write().unwrap().destroy();
         }
 
-        if let Some(physical_device) = self.reg.get::<physical_device::PhysicalDevice>()
+        if let Some(physical_device) = self.reg.get::<PhysicalDevice>()
         {
             physical_device.write().unwrap().destroy();
         }
 
-        if let Some(surface) = self.reg.get::<surface::Surface>()
+        if let Some(surface) = self.reg.get::<Surface>()
         {
             surface.write().unwrap().destroy();
         }
 
-        if let Some(instance) = self.reg.get::<instance::Instance>()
+        if let Some(instance) = self.reg.get::<Instance>()
         {
             instance.write().unwrap().destroy();
         }
@@ -86,7 +105,25 @@ impl RenderAPI for VulkanRenderer
         log::info!("Vulkan Renderer Destroyed");
     }
 
-    fn frame_prepare(&mut self) {}
+    fn frame_prepare(&mut self)
+    {
+        if let Some(swapchain) = self.reg.get::<Swapchain>()
+        {
+            let _ = swapchain.write().unwrap().recreate_if_dirty();
+        }
+    }
+
     fn frame_render(&mut self) {}
     fn frame_finish(&mut self) {}
+
+    fn surface_size_changed(&mut self, w: u32, h: u32) -> ThResult<()>
+    {
+        self.reg
+            .get_unchecked::<Swapchain>()
+            .write()
+            .unwrap()
+            .mark_dirty(w, h);
+
+        Ok(())
+    }
 }

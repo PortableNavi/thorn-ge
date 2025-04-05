@@ -267,6 +267,7 @@ pub struct PhysicalDevice
 {
     pub device: vk::PhysicalDevice,
     pub props: PhysicalDeviceProps,
+    surface: Layer<Surface>,
 }
 
 
@@ -300,7 +301,26 @@ impl PhysicalDevice
             .ok_or(ThError::RendererError("No useable GPU found".into()))?;
 
         log::info!("Vulkan physical device created");
-        Ok(Self { device, props })
+        Ok(Self {
+            device,
+            props,
+            surface: reg.get_unchecked(),
+        })
+    }
+
+    pub fn update_capabilities(&mut self)
+    {
+        let surface = self.surface.read().unwrap();
+
+        // I dont really expect this to fail, at this point
+        if let Ok(caps) = unsafe {
+            surface
+                .loader
+                .get_physical_device_surface_capabilities(self.device, surface.surface)
+        }
+        {
+            self.props.surface_capabilities = caps;
+        }
     }
 
     pub fn destroy(&mut self)

@@ -35,6 +35,8 @@ impl ApplicationHandler<WinitMsg> for ThornWindow
             match self.renderer.write().unwrap().initialize(
                 win.display_handle().expect("No Display handle...").as_raw(),
                 win.window_handle().expect("No window handle...").as_raw(),
+                win.inner_size().width,
+                win.inner_size().height,
             )
             {
                 Err(e) =>

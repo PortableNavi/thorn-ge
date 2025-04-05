@@ -8,11 +8,11 @@ use crate::{engine::renderer::vulkan::physical_device::PhysicalDeviceProps, prel
 
 pub struct LogicalDevice
 {
-    logical_device: ash::Device,
-    graphics_queue: Option<vk::Queue>,
-    present_queue: Option<vk::Queue>,
-    compute_queue: Option<vk::Queue>,
-    transfer_queue: Option<vk::Queue>,
+    pub logical_device: ash::Device,
+    pub graphics_queue: Option<vk::Queue>,
+    pub present_queue: Option<vk::Queue>,
+    pub compute_queue: Option<vk::Queue>,
+    pub transfer_queue: Option<vk::Queue>,
 }
 
 
