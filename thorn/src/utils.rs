@@ -76,3 +76,27 @@ impl MsgBoxThread
         }
     }
 }
+
+
+// Some qol macros for convinience
+#[macro_export]
+macro_rules! either
+{
+    {$condition:expr => $on_true:expr; $on_false:expr} => {if $condition {$on_true} else {$on_false}};
+}
+
+#[macro_export]
+macro_rules! if_do {
+    (($name:ident=$val:expr) => { $($condition:expr => $on_true:expr;)* }) => {
+        {
+            let mut $name = $val;
+            $(if $condition {$on_true;})*
+            $name
+        }
+    };
+
+    ($($condition:expr => $on_true:expr;)*) => {{
+        $(if $condition {$on_true;})*
+        ()
+    }};
+}

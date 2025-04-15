@@ -95,7 +95,12 @@ impl Swapchain
         self.create()?;
         self.dirty = None;
 
-        log::info!("Vulkan swapchain recreated");
+        log::info!(
+            "Vulkan swapchain recreated with extent: {}:{}",
+            self.width,
+            self.height
+        );
+
         Ok(())
     }
 
@@ -210,7 +215,8 @@ impl Swapchain
             .props
             .present_modes
             .iter()
-            .find(|m| **m == vk::PresentModeKHR::MAILBOX).copied()
+            .find(|m| **m == vk::PresentModeKHR::MAILBOX)
+            .copied()
             .unwrap_or(vk::PresentModeKHR::FIFO);
 
         self.physical_device.write().unwrap().update_capabilities();
@@ -271,7 +277,8 @@ impl Swapchain
             .read()
             .unwrap()
             .props
-            .depth_formats.first()
+            .depth_formats
+            .first()
             .ok_or(ThError::RendererError(
                 "Failed to select a depth format".into(),
             ))?;
