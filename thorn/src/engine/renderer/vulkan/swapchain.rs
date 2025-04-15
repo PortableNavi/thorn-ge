@@ -77,14 +77,14 @@ impl Swapchain
         self.dirty = Some((w, h));
     }
 
-    pub fn recreate_if_dirty(&mut self) -> ThResult<()>
+    pub fn recreate_if_dirty(&mut self) -> ThResult<bool>
     {
         if let Some((w, h)) = self.dirty
         {
-            return self.recreate(w, h);
+            return self.recreate(w, h).map(|_| true);
         }
 
-        Ok(())
+        Ok(false)
     }
 
     pub fn recreate(&mut self, w: u32, h: u32) -> ThResult<()>

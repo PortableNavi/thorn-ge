@@ -4,6 +4,7 @@
 
 mod command_buffer;
 mod command_pool;
+mod framebuffer;
 mod image;
 mod instance;
 mod logical_device;
@@ -14,9 +15,11 @@ mod swapchain;
 
 
 use super::api::RenderAPI;
-use crate::prelude::*;
+use crate::{prelude::*, reg_inspect};
+use ash::vk::RenderPass;
 use command_buffer::CommandBuffers;
 use command_pool::CommandPools;
+use framebuffer::{FrameBuffer, FrameBuffers};
 use instance::Instance;
 use logical_device::LogicalDevice;
 use physical_device::PhysicalDevice;
@@ -107,12 +110,23 @@ impl RenderAPI for VulkanRenderer
             self.reg.insert(pass);
         }
 
+        if self.reg.get::<FrameBuffers>().is_none()
+        {
+            let fbuffers = FrameBuffers::new(&self.reg)?;
+            self.reg.insert(fbuffers);
+        }
+
         log::info!("Vulkan Renderer Initialized");
         Ok(())
     }
 
     fn destroy(&mut self)
     {
+        if let Some(fbuffers) = self.reg.get::<FrameBuffers>()
+        {
+            fbuffers.write().unwrap().destroy();
+        }
+
         if let Some(renderpass) = self.reg.get::<Renderpass>()
         {
             renderpass.write().unwrap().destroy();
@@ -160,17 +174,34 @@ impl RenderAPI for VulkanRenderer
     {
         if let Some(swapchain) = self.reg.get::<Swapchain>()
         {
-            let mut swapchain = swapchain.write().unwrap();
-            let _ = swapchain.recreate_if_dirty();
+            // Recreate swapchain if necessary
+            let mut swapchain_dirty = false;
+            reg_inspect!(self.reg, swapchain = Swapchain => {
+                if let Ok(result) = swapchain.recreate_if_dirty()
+                {
+                    swapchain_dirty = result;
+                }
 
-            self.surface_width = swapchain.width;
-            self.surface_height = swapchain.height;
+                self.surface_width = swapchain.width;
+                self.surface_height = swapchain.height;
+            });
 
-            self.reg.get::<Renderpass>().inspect(|p| {
-                let mut pass = p.write().unwrap();
-                pass.width = swapchain.width as f32;
-                pass.height = swapchain.height as f32;
+            // Set new framebuffer dimensions
+            reg_inspect!(self.reg, pass = Renderpass => {
+                pass.width = self.surface_width;
+                pass.height = self.surface_height;
+            });
 
+            // Update the Framebuffer if the swapchain was dirty
+            if swapchain_dirty
+            {
+                reg_inspect!(self.reg, fb = FrameBuffers => {
+                    let _ = fb.regenerate();
+                });
+            }
+
+            // Begin the renderpass...
+            reg_inspect!(self.reg, pass=Renderpass => {
                 //pass.begin(); //TODO: Uncomment once command buffers and a framebuffer are implemented
             });
         }
@@ -188,10 +219,9 @@ impl RenderAPI for VulkanRenderer
 
     fn surface_size_changed(&mut self, w: u32, h: u32) -> ThResult<()>
     {
-        if let Some(swapchain) = self.reg.get::<Swapchain>()
-        {
-            swapchain.write().unwrap().mark_dirty(w, h);
-        }
+        reg_inspect!(self.reg, sc = Swapchain => {
+            sc.mark_dirty(w, h);
+        });
 
         Ok(())
     }

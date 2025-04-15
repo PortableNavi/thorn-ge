@@ -87,3 +87,33 @@ impl<E> Default for LayerReg<E>
         Self::new()
     }
 }
+
+
+#[macro_export]
+macro_rules! reg_inspect {
+    ($reg:expr, $name:ident = $layer:ident => $f:expr) => {{
+        if let Some(layer) = $reg.get::<$layer>()
+        {
+            if let Ok(mut $name) = layer.write()
+            {
+                $f;
+            }
+        }
+    }};
+}
+
+
+#[macro_export]
+macro_rules! reg_read {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().read().unwrap()
+    };
+}
+
+
+#[macro_export]
+macro_rules! reg_write {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().write().unwrap()
+    };
+}

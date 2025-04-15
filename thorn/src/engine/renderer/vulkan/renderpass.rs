@@ -20,19 +20,19 @@ pub enum State
 pub struct Renderpass
 {
     pub renderpass: vk::RenderPass,
-    pub pos_x: f32,
-    pub pos_y: f32,
-    pub width: f32,
-    pub height: f32,
+    pub pos_x: u32,
+    pub pos_y: u32,
+    pub width: u32,
+    pub height: u32,
     pub clear_color: (f32, f32, f32),
     pub state: State,
     pub depth: f32,
     pub stencil: u32,
+    pub attachments: [vk::AttachmentDescription; 2],
 
     device: Layer<LogicalDevice>,
     swapchain: Layer<Swapchain>,
     command_buffers: Layer<CommandBuffers>,
-    // command_buffer: Layer<FrameBuffer>, //TODO: Create the frame buffer...
 }
 
 
@@ -113,10 +113,11 @@ impl Renderpass
 
         Ok(Self {
             renderpass,
-            pos_x: 0.0,
-            pos_y: 0.0,
-            width: width as f32,
-            height: height as f32,
+            attachments,
+            pos_x: 0,
+            pos_y: 0,
+            width,
+            height,
             clear_color,
             state: State::Ready,
             depth: 1.0,
@@ -139,7 +140,7 @@ impl Renderpass
     }
 
     // TODO: This frame parameter is just for testing
-    pub fn begin(&mut self, frame: usize)
+    pub fn begin(&mut self, frame_buffer: vk::Framebuffer, frame: usize)
     {
         let clear_values = [
             // Color clear value
@@ -165,15 +166,15 @@ impl Renderpass
         let begin_info = vk::RenderPassBeginInfo::default()
             .render_pass(self.renderpass)
             .clear_values(&clear_values)
-            .framebuffer(vk::Framebuffer::null()) //TODO: Get this from self.framebuffer ...
+            .framebuffer(frame_buffer)
             .render_area(vk::Rect2D {
                 offset: vk::Offset2D {
                     x: self.pos_x as i32,
                     y: self.pos_y as i32,
                 },
                 extent: vk::Extent2D {
-                    width: self.width as u32,
-                    height: self.height as u32,
+                    width: self.width,
+                    height: self.height,
                 },
             });
 
