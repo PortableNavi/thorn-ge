@@ -29,6 +29,7 @@ pub struct Swapchain
     pub images: Vec<vk::Image>,
     pub views: Vec<vk::ImageView>,
     pub depth_buffer: VkImage2D,
+    pub current_frame: usize,
 
     device: Layer<LogicalDevice>,
     physical_device: Layer<PhysicalDevice>,
@@ -53,6 +54,7 @@ impl Swapchain
         let mut me = Self {
             width,
             height,
+            current_frame: 0,
             depth_buffer: VkImage2D::default(),
             swapchain_device,
             depth_buffer_format: vk::Format::default(),
@@ -163,13 +165,13 @@ impl Swapchain
                 Ok(false) =>
                 {
                     log::warn!("Surface is suboptimal for image");
-                    self.recreate(0, 0)?; //TODO: Get width and height from framebuffer...
+                    self.recreate(self.width, self.height)?;
                 }
 
                 Err(vk::Result::ERROR_OUT_OF_DATE_KHR) =>
                 {
                     log::warn!("Swapchain is out of date");
-                    self.recreate(0, 0)?; //TODO: Get width and height from framebuffer...
+                    self.recreate(self.width, self.height)?;
                 }
 
                 Ok(true) => (),
@@ -180,6 +182,8 @@ impl Swapchain
         {
             log::warn!("Tried to present the swapchain without a present queue...");
         }
+
+        self.current_frame = (self.current_frame + 1) % self.max_buffered_frames as usize;
 
         Ok(())
     }

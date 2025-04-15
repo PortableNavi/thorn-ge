@@ -37,6 +37,7 @@ pub(crate) struct VulkanRenderer
     surface_width: u32,
     surface_height: u32,
     buffered_frames: u32,
+    frame: usize,
 }
 
 
@@ -49,6 +50,7 @@ impl VulkanRenderer
             surface_width: 0,
             surface_height: 0,
             buffered_frames: 3,
+            frame: 0,
         }
     }
 }
@@ -203,38 +205,39 @@ impl RenderAPI for VulkanRenderer
 
     fn frame_prepare(&mut self)
     {
-        if let Some(swapchain) = self.reg.get::<Swapchain>()
-        {
+        let mut swapchain_dirty = false;
+        reg_inspect!(self.reg, swapchain = Swapchain => {
+
+            // Fetch current frame index.
+            self.frame = swapchain.current_frame;
+
             // Recreate swapchain if necessary
-            let mut swapchain_dirty = false;
-            reg_inspect!(self.reg, swapchain = Swapchain => {
-                if let Ok(result) = swapchain.recreate_if_dirty()
-                {
-                    swapchain_dirty = result;
-                }
-
-                self.surface_width = swapchain.width;
-                self.surface_height = swapchain.height;
-                self.buffered_frames = swapchain.max_buffered_frames;
-            });
-
-            // Set new framebuffer dimensions
-            reg_inspect!(self.reg, pass = Renderpass => {
-                pass.width = self.surface_width;
-                pass.height = self.surface_height;
-            });
-
-            // Update the Framebuffer if the swapchain was dirty
-            if swapchain_dirty
+            if let Ok(result) = swapchain.recreate_if_dirty()
             {
-                reg_inspect!(self.reg, fb = FrameBuffers => {
-                    let _ = fb.regenerate();
-                });
+                swapchain_dirty = result;
             }
 
-            // Begin the frame...
-            begin_frame(&self.reg, 0);
+            self.surface_width = swapchain.width;
+            self.surface_height = swapchain.height;
+            self.buffered_frames = swapchain.max_buffered_frames;
+        });
+
+        // Set new framebuffer dimensions
+        reg_inspect!(self.reg, pass = Renderpass => {
+            pass.width = self.surface_width;
+            pass.height = self.surface_height;
+        });
+
+        // Update the Framebuffer if the swapchain was dirty
+        if swapchain_dirty
+        {
+            reg_inspect!(self.reg, fb = FrameBuffers => {
+                let _ = fb.regenerate();
+            });
         }
+
+        // Begin the frame...
+        begin_frame(&self.reg, 0);
     }
 
     fn frame_render(&mut self) {}
