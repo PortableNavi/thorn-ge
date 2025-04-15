@@ -7,8 +7,8 @@ use super::{logical_device::LogicalDevice, renderpass::Renderpass, swapchain::Sw
 #[derive(Clone)]
 pub struct FrameBuffer
 {
-    frame_buffer: vk::Framebuffer,
-    index: usize,
+    pub frame_buffer: vk::Framebuffer,
+    pub index: usize,
     swapchain: Layer<Swapchain>,
     renderpass: Layer<Renderpass>,
     device: Layer<LogicalDevice>,
@@ -99,7 +99,7 @@ impl FrameBuffer
 
 pub struct FrameBuffers
 {
-    buffers: Vec<FrameBuffer>,
+    pub buffers: Vec<FrameBuffer>,
 }
 
 

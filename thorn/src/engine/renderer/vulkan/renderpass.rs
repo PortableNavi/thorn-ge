@@ -4,7 +4,12 @@ use ash::{
     vk::{self, ClearColorValue, ClearDepthStencilValue},
 };
 
-use super::{command_buffer::CommandBuffers, logical_device::LogicalDevice, swapchain::Swapchain};
+use super::{
+    command_buffer::CommandBuffers,
+    framebuffer::FrameBuffers,
+    logical_device::LogicalDevice,
+    swapchain::Swapchain,
+};
 
 
 pub enum State
@@ -33,6 +38,7 @@ pub struct Renderpass
     device: Layer<LogicalDevice>,
     swapchain: Layer<Swapchain>,
     command_buffers: Layer<CommandBuffers>,
+    pub(super) frame_buffer: Option<Layer<FrameBuffers>>,
 }
 
 
@@ -125,11 +131,14 @@ impl Renderpass
             device: reg.get_unchecked(),
             swapchain: reg.get_unchecked(),
             command_buffers: reg.get_unchecked(),
+            frame_buffer: None,
         })
     }
 
     pub fn destroy(&mut self)
     {
+        self.frame_buffer = None; // Avoid cyclic dependency
+
         unsafe {
             self.device
                 .read()
@@ -140,8 +149,12 @@ impl Renderpass
     }
 
     // TODO: This frame parameter is just for testing
-    pub fn begin(&mut self, frame_buffer: vk::Framebuffer, frame: usize)
+    pub fn begin(&mut self, frame: usize)
     {
+        let framebuffer =
+            self.frame_buffer.as_ref().unwrap().read().unwrap().buffers[frame].frame_buffer;
+
+
         let clear_values = [
             // Color clear value
             vk::ClearValue {
@@ -166,7 +179,7 @@ impl Renderpass
         let begin_info = vk::RenderPassBeginInfo::default()
             .render_pass(self.renderpass)
             .clear_values(&clear_values)
-            .framebuffer(frame_buffer)
+            .framebuffer(framebuffer)
             .render_area(vk::Rect2D {
                 offset: vk::Offset2D {
                     x: self.pos_x as i32,

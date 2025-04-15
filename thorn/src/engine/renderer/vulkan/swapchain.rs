@@ -6,6 +6,7 @@ use super::{
     logical_device::LogicalDevice,
     physical_device::PhysicalDevice,
     surface::Surface,
+    sync::VkSync,
 };
 
 use crate::prelude::*;
@@ -33,7 +34,7 @@ pub struct Swapchain
     physical_device: Layer<PhysicalDevice>,
     surface: Layer<Surface>,
     dirty: Option<(u32, u32)>,
-    //sync: Layer<Sync>,
+    sync: Layer<VkSync>,
 }
 
 
@@ -63,6 +64,7 @@ impl Swapchain
             device: reg.get_unchecked(),
             physical_device: reg.get_unchecked(),
             surface: reg.get_unchecked(),
+            sync: reg.get_unchecked(),
             dirty: None,
         };
 
@@ -240,11 +242,22 @@ impl Swapchain
             .clamp(caps.min_image_extent.height, caps.max_image_extent.height);
 
         // Get one more image than the minimum images allowed but not more than the maximum images supported
-        let mut image_count = caps.min_image_count + 1;
+        log::info!(
+            "Minimum buffered frames count: {}",
+            caps.min_image_count + 1
+        );
+
+        log::info!(
+            "Preferred buffered frames count: {}",
+            self.max_buffered_frames
+        );
+        let mut image_count = (caps.min_image_count + 1).max(self.max_buffered_frames);
         if caps.max_image_count != 0
         {
             image_count = image_count.min(caps.max_image_count);
         }
+
+        self.max_buffered_frames = image_count;
 
         let present_queue_index = self.physical_device.read().unwrap().props.present_queue;
         let graphics_queue_index = self.physical_device.read().unwrap().props.graphics_queue;

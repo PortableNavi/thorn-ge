@@ -104,6 +104,33 @@ macro_rules! reg_inspect {
 
 
 #[macro_export]
+macro_rules! layer_inspect {
+    ($name:ident = $layer:expr => $f:expr) => {{
+        if let Ok(mut $name) = $layer.write()
+        {
+            $f
+        }
+    }};
+}
+
+
+#[macro_export]
+macro_rules! layer_read {
+    ($layer:expr) => {
+        $layer.read().unwrap()
+    };
+}
+
+
+#[macro_export]
+macro_rules! layer_write {
+    ($layer:expr) => {
+        $layer.write().unwrap()
+    };
+}
+
+
+#[macro_export]
 macro_rules! reg_read {
     ($reg:expr, $layer:ident) => {
         $reg.get_unchecked::<$layer>().read().unwrap()
