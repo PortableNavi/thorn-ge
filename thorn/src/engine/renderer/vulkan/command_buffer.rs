@@ -1,4 +1,3 @@
-
 use super::{
     command_pool::{CommandPool, CommandPools},
     logical_device::LogicalDevice,

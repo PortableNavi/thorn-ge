@@ -1,4 +1,3 @@
-
 use super::{
     image::VkImage2D,
     instance::Instance,
