@@ -94,6 +94,7 @@ macro_rules! reg_inspect {
     ($reg:expr, $name:ident = $layer:ident => $f:expr) => {{
         if let Some(layer) = $reg.get::<$layer>()
         {
+            #[allow(unused_mut)]
             if let Ok(mut $name) = layer.write()
             {
                 $f;
@@ -106,6 +107,7 @@ macro_rules! reg_inspect {
 #[macro_export]
 macro_rules! layer_inspect {
     ($name:ident = $layer:expr => $f:expr) => {{
+        #[allow(unused_mut)]
         if let Ok(mut $name) = $layer.write()
         {
             $f

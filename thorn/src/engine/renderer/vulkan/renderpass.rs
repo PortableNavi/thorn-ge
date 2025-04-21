@@ -1,8 +1,6 @@
+
 use crate::prelude::*;
-use ash::{
-    ext::pipeline_creation_cache_control,
-    vk::{self, ClearColorValue, ClearDepthStencilValue},
-};
+use ash::vk::{self};
 
 use super::{
     command_buffer::CommandBuffers,
@@ -52,7 +50,7 @@ impl Renderpass
         let swapchain = reg.get_unchecked::<Swapchain>();
         let swapchain = &swapchain.read().unwrap();
 
-        let clear_color = (255.0 / 121.0, 0.0, 255.0 / 36.0);
+        let clear_color = (0.47, 0.0, 0.16);
 
         let mut attachments = [vk::AttachmentDescription::default(); 2];
 
@@ -76,10 +74,10 @@ impl Renderpass
         attachments[1] = vk::AttachmentDescription::default()
             .format(swapchain.depth_buffer_format)
             .samples(vk::SampleCountFlags::TYPE_1)
-            .load_op(vk::AttachmentLoadOp::CLEAR)
-            .store_op(vk::AttachmentStoreOp::STORE)
-            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-            .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .load_op(vk::AttachmentLoadOp::DONT_CARE)
+            .store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .stencil_load_op(vk::AttachmentLoadOp::CLEAR)
+            .stencil_store_op(vk::AttachmentStoreOp::STORE)
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
             .flags(vk::AttachmentDescriptionFlags::empty());
@@ -88,13 +86,25 @@ impl Renderpass
             .attachment(1)
             .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
+        // attachments[2] = vk::AttachmentDescription::default()
+        //     .format(swapchain.image_format.format)
+        //     .samples(vk::SampleCountFlags::TYPE_1)
+        //     .load_op(vk::AttachmentLoadOp::DONT_CARE)
+        //     .store_op(vk::AttachmentStoreOp::STORE)
+        //     .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+        //     .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+        //     .initial_layout(vk::ImageLayout::UNDEFINED)
+        //     .final_layout(vk::ImageLayout::PRESENT_SRC_KHR);
+
+        // let resolve_attachment_ref = &[vk::AttachmentReference::default()
+        //     .attachment(2)
+        //     .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
+
         let subpass = &[vk::SubpassDescription::default()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(color_attachment_ref)
-            .depth_stencil_attachment(&depth_attachment_ref)
-            .input_attachments(&[])
-            .resolve_attachments(&[])
-            .preserve_attachments(&[])];
+            //.resolve_attachments(resolve_attachment_ref)
+            .depth_stencil_attachment(&depth_attachment_ref)];
 
         let dependency = &[vk::SubpassDependency::default()
             .dependency_flags(vk::DependencyFlags::empty())
@@ -104,14 +114,13 @@ impl Renderpass
             .src_access_mask(vk::AccessFlags::empty())
             .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
             .dst_access_mask(
-                vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+                vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::COLOR_ATTACHMENT_READ,
             )];
 
         let create_info = vk::RenderPassCreateInfo::default()
             .attachments(&attachments)
             .subpasses(subpass)
-            .dependencies(dependency)
-            .flags(vk::RenderPassCreateFlags::empty());
+            .dependencies(dependency);
 
         let renderpass = unsafe { device.logical_device.create_render_pass(&create_info, None) }?;
 
@@ -148,12 +157,10 @@ impl Renderpass
         log::info!("Vulkan renderpass destroyed");
     }
 
-    // TODO: This frame parameter is just for testing
-    pub fn begin(&mut self, frame: usize)
+    pub fn begin(&mut self, image_index: usize)
     {
         let framebuffer =
-            self.frame_buffer.as_ref().unwrap().read().unwrap().buffers[frame].frame_buffer;
-
+            self.frame_buffer.as_ref().unwrap().read().unwrap().buffers[image_index].frame_buffer;
 
         let clear_values = [
             // Color clear value
@@ -191,9 +198,10 @@ impl Renderpass
                 },
             });
 
+
         self.device.read().inspect(|d| unsafe {
             d.logical_device.cmd_begin_render_pass(
-                self.command_buffers.read().unwrap().graphics[frame].buffer,
+                self.command_buffers.read().unwrap().graphics[image_index].buffer,
                 &begin_info,
                 vk::SubpassContents::INLINE,
             );
@@ -202,12 +210,12 @@ impl Renderpass
         self.state = State::Ongoing;
     }
 
-    //TODO: This frame parameter is just for testing
-    pub fn end(&mut self, frame: usize)
+    pub fn end(&mut self, image_index: usize)
     {
         self.device.read().inspect(|d| unsafe {
-            d.logical_device
-                .cmd_end_render_pass(self.command_buffers.read().unwrap().graphics[frame].buffer);
+            d.logical_device.cmd_end_render_pass(
+                self.command_buffers.read().unwrap().graphics[image_index].buffer,
+            );
         });
     }
 }

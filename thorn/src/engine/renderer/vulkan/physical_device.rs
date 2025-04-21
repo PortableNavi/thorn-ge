@@ -71,7 +71,11 @@ impl PhysicalDeviceProps
 
             if q.queue_flags.contains(vk::QueueFlags::GRAPHICS)
             {
-                graphics_queue = Some(i as u32);
+                if graphics_queue.is_none()
+                {
+                    graphics_queue = Some(i as u32);
+                }
+
                 score += 1;
             }
 
@@ -91,7 +95,10 @@ impl PhysicalDeviceProps
 
             if surface_support
             {
-                present_queue = Some(i as u32);
+                if present_queue.is_none()
+                {
+                    present_queue = Some(i as u32);
+                }
                 score += 1;
             }
 
@@ -102,6 +109,9 @@ impl PhysicalDeviceProps
                 transfer_score = score;
             }
         }
+
+        log::info!("Present Queue: {present_queue:?}");
+        log::info!("Graphisc Queue: {graphics_queue:?}");
 
         // Get the surface capabilities...
         let surface_capabilities = unsafe {

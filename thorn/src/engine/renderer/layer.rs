@@ -1,12 +1,25 @@
-use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
-
-use super::{api::RenderAPI, vulkan::VulkanRenderer};
+use super::{
+    api::{FrameStatus, RenderAPI},
+    vulkan::VulkanRenderer,
+};
 use crate::prelude::*;
+use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 
 pub enum Backend
 {
     Vulkan,
+}
+
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum FrameState
+{
+    Begin,
+    Render,
+    Finish,
+    Failed,
+    Destroy,
 }
 
 
@@ -43,6 +56,7 @@ impl Plugin<LayerEvent> for RendererPlugin
             api,
             tasks,
             event_receiver,
+            frame_state: FrameState::Finish,
         }))
     }
 
@@ -62,6 +76,7 @@ impl Plugin<LayerEvent> for RendererPlugin
 pub struct Renderer
 {
     api: Box<dyn RenderAPI>,
+    frame_state: FrameState,
     tasks: Layer<Tasks>,
     event_receiver: Layer<EventReceiver<PlatformEvent>>,
 }
@@ -77,7 +92,8 @@ impl Renderer
 
     fn destroy(&mut self)
     {
-        self.api.destroy();
+        self.frame_state = FrameState::Destroy;
+        //self.api.destroy();
     }
 
     pub fn initialize(
@@ -93,6 +109,15 @@ impl Renderer
 }
 
 
+impl Drop for Renderer
+{
+    fn drop(&mut self)
+    {
+        self.api.destroy();
+    }
+}
+
+
 impl LayerDispatch<LayerEvent> for Renderer
 {
     fn dispatch(&mut self, _event: &LayerEvent) {}
@@ -103,17 +128,47 @@ impl CoreHook for Renderer
 {
     fn prepare(&mut self)
     {
-        self.api.frame_prepare();
+        if self.frame_state != FrameState::Finish
+        {
+            log::warn!("Tried to begin frame after last frame didnt finish properly");
+            self.frame_state = FrameState::Failed;
+            return;
+        }
+
+        if let FrameStatus::Success = self.api.frame_prepare()
+        {
+            self.frame_state = FrameState::Begin;
+        }
     }
 
     fn tick(&mut self, _frame_info: &FrameInfo)
     {
-        self.api.frame_render();
+        if self.frame_state != FrameState::Begin
+        {
+            log::warn!("Tried to render frame after begining it failed");
+            self.frame_state = FrameState::Failed;
+            return;
+        }
+
+        if let FrameStatus::Success = self.api.frame_render()
+        {
+            self.frame_state = FrameState::Render;
+        }
     }
 
     fn finish(&mut self)
     {
-        self.api.frame_finish();
+        if self.frame_state != FrameState::Render
+        {
+            log::warn!("Tried to end frame after rendering failed");
+            self.frame_state = FrameState::Failed;
+            return;
+        }
+
+        if let FrameStatus::Success = self.api.frame_finish()
+        {
+            self.frame_state = FrameState::Finish;
+        }
     }
 }
 
@@ -122,6 +177,11 @@ impl EventSubscriber<PlatformEvent> for Renderer
 {
     fn receive_event(&mut self, event: &PlatformEvent)
     {
+        if self.frame_state == FrameState::Destroy
+        {
+            return;
+        }
+
         #[allow(clippy::single_match)]
         match event
         {

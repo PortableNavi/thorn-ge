@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 
 use super::{
     image::VkImage2D,
@@ -9,12 +8,8 @@ use super::{
     sync::VkSync,
 };
 
-use crate::prelude::*;
+use crate::{layer_read, prelude::*};
 use ash::vk::{self, Handle};
-
-
-//TODO: Implement Sync layer and use it here...
-//TODO: Implement Framebuffer layer and use it here...
 
 
 pub struct Swapchain
@@ -76,6 +71,11 @@ impl Swapchain
         Ok(me)
     }
 
+    pub fn is_dirty(&self) -> bool
+    {
+        self.dirty.is_some()
+    }
+
     pub fn mark_dirty(&mut self, w: u32, h: u32)
     {
         self.dirty = Some((w, h));
@@ -108,10 +108,10 @@ impl Swapchain
         Ok(())
     }
 
-    pub fn get_next_image_index(&mut self, timeout_ns: u64) -> ThResult<u32>
+    pub fn get_next_image_index(&mut self, timeout_ns: u64, frame: usize) -> ThResult<u32>
     {
-        let image_available = vk::Semaphore::null(); //TODO: get this from self.sync
-        let fence = vk::Fence::null(); //TODO: get this from self.sync
+        let image_available = layer_read!(self.sync).image_available[frame];
+        let fence = vk::Fence::null(); //TODO: Think about this
 
         let result = unsafe {
             self.swapchain_device.acquire_next_image(
@@ -122,34 +122,32 @@ impl Swapchain
             )
         };
 
-        let (index, optimal) = match result
+        let (index, _optimal) = match result
         {
             Ok(val) => val,
 
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) =>
             {
-                self.recreate(0, 0)?; //TODO: Get width and height from framebuffer...
+                log::warn!("Image is not optimal for current surface");
+                if !self.is_dirty()
+                {
+                    self.mark_dirty(self.width, self.height);
+                }
                 return Err(ThError::from(vk::Result::ERROR_OUT_OF_DATE_KHR));
             }
 
             Err(e) => return Err(ThError::from(e)),
         };
 
-        if !optimal
-        {
-            log::warn!("Image is not optimal for current surface");
-        }
-
         Ok(index)
     }
 
-    pub fn present(&mut self, image_index: u32) -> ThResult<()>
+    pub fn present(&mut self, image_index: usize, frame: usize) -> ThResult<()>
     {
-        let render_complete = vk::Semaphore::null(); //TODO: Get this from self.sync
-
+        let render_complete = layer_read!(self.sync).queue_complete[frame];
         let swapchains = &[self.swapchain];
         let wait_semaphores = &[render_complete];
-        let image_indices = &[image_index];
+        let image_indices = &[image_index as u32];
 
         let present_info = vk::PresentInfoKHR::default()
             .wait_semaphores(wait_semaphores)
@@ -157,24 +155,30 @@ impl Swapchain
             .image_indices(image_indices);
 
         let queue = self.device.read().unwrap().present_queue;
+        assert!(queue.is_some()); // TODO: Remove once i have recovered my sanity
 
         if let Some(q) = queue
         {
             match unsafe { self.swapchain_device.queue_present(q, &present_info) }
             {
-                Ok(false) =>
+                Ok(true) =>
                 {
                     log::warn!("Surface is suboptimal for image");
-                    self.recreate(self.width, self.height)?;
+                    if !self.is_dirty()
+                    {
+                        self.mark_dirty(self.width, self.height);
+                    }
                 }
-
                 Err(vk::Result::ERROR_OUT_OF_DATE_KHR) =>
                 {
                     log::warn!("Swapchain is out of date");
-                    self.recreate(self.width, self.height)?;
+                    if !self.is_dirty()
+                    {
+                        self.mark_dirty(self.width, self.height);
+                    }
                 }
 
-                Ok(true) => (),
+                Ok(_) => (),
                 Err(e) => return Err(e.into()),
             }
         }
@@ -184,7 +188,6 @@ impl Swapchain
         }
 
         self.current_frame = (self.current_frame + 1) % self.max_buffered_frames as usize;
-
         Ok(())
     }
 
@@ -206,7 +209,7 @@ impl Swapchain
             *formats
                 .iter()
                 .find(|e| {
-                    e.format == vk::Format::B8G8R8A8_UNORM
+                    e.format == vk::Format::R8G8B8A8_UNORM
                         && e.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
                 })
                 .unwrap_or(formats.first().ok_or(ThError::RendererError(
@@ -235,7 +238,10 @@ impl Swapchain
             .surface_capabilities
             .clone();
 
-        let extend = caps.current_extent;
+        let extend = vk::Extent2D {
+            width: self.width,
+            height: self.height,
+        };
 
         self.width = extend
             .width
@@ -267,7 +273,7 @@ impl Swapchain
         let graphics_queue_index = self.physical_device.read().unwrap().props.graphics_queue;
 
         let sharing_mode = {
-            if present_queue_index == graphics_queue_index
+            if present_queue_index != graphics_queue_index
             {
                 vk::SharingMode::CONCURRENT
             }
@@ -277,17 +283,17 @@ impl Swapchain
             }
         };
 
-        let mut queues = HashSet::new();
-        if let Some(p) = present_queue_index
+
+        let mut queues = vec![];
+        if let Some(graphics) = graphics_queue_index
         {
-            queues.insert(p);
-        }
-        if let Some(g) = present_queue_index
-        {
-            queues.insert(g);
+            queues.push(graphics);
         }
 
-        let queues = queues.into_iter().collect::<Vec<_>>();
+        if let Some(present) = present_queue_index
+        {
+            queues.push(present);
+        }
 
         let depth_format = *self
             .physical_device
@@ -332,6 +338,8 @@ impl Swapchain
 
         let swapchain = unsafe { self.swapchain_device.create_swapchain(&create_info, None) }?;
         let images = unsafe { self.swapchain_device.get_swapchain_images(swapchain)? };
+
+        self.max_buffered_frames = images.len() as _;
 
         let mut views = vec![];
         for img in &images

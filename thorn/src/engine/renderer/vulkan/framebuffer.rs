@@ -56,7 +56,7 @@ impl FrameBuffer
         let renderpass = rp.read().unwrap();
 
         let attachments = [
-            swapchain.views[0],
+            swapchain.views[index],
             swapchain.depth_buffer.view.unwrap_or_default(),
         ];
 

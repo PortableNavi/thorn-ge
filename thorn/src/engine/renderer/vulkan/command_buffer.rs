@@ -1,9 +1,10 @@
+
 use super::{
     command_pool::{CommandPool, CommandPools},
     logical_device::LogicalDevice,
     swapchain::Swapchain,
 };
-use crate::prelude::*;
+use crate::{layer_inspect, prelude::*};
 use ash::vk;
 
 
@@ -19,6 +20,7 @@ pub enum State
 }
 
 
+#[derive(Clone)]
 pub struct CommandBuffer
 {
     pub buffer: vk::CommandBuffer,
@@ -130,6 +132,44 @@ impl CommandBuffer
         }
     }
 
+    pub fn submit(
+        &mut self,
+        queue: vk::Queue,
+        wait: vk::Semaphore,
+        signal: vk::Semaphore,
+        fence: vk::Fence,
+    ) -> ThResult<()>
+    {
+        if self.state != State::RecordingEnded
+        {
+            log::warn!(
+                "Tried to submit a command buffer while its receording was not ended. Command buffer was in state: {:?}",
+                self.state
+            );
+
+            return Err(ThError::RendererError("Queue was not submitable".into()));
+        }
+
+        let buffers = [self.buffer];
+        let wait = [wait];
+        let signal = [signal];
+        let stage_flags = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+
+        let submit_info = [vk::SubmitInfo::default()
+            .command_buffers(&buffers)
+            .wait_dst_stage_mask(&stage_flags)
+            .wait_semaphores(&wait)
+            .signal_semaphores(&signal)];
+
+        unsafe {
+            let device = self.device.read().unwrap().logical_device.clone();
+            device.queue_submit(queue, &submit_info, fence);
+        }
+
+        self.state = State::Ready;
+        Ok(())
+    }
+
     pub fn end_single_use(&mut self, queue: vk::Queue)
     {
         if !self.single_use
@@ -146,6 +186,23 @@ impl CommandBuffer
         self.destroy();
     }
 
+    pub fn reset(&mut self)
+    {
+        self.state = State::Ready;
+
+        layer_inspect!(d=self.device => unsafe {
+            d.logical_device.reset_command_buffer(self.buffer, vk::CommandBufferResetFlags::default());
+        });
+    }
+
+    pub fn set_viewport(&mut self, viewport: vk::Viewport, scissor: vk::Rect2D)
+    {
+        layer_inspect!(d=self.device => unsafe {
+            d.logical_device.cmd_set_viewport(self.buffer, 0, &[viewport]);
+            d.logical_device.cmd_set_scissor(self.buffer, 0, &[scissor]);
+        })
+    }
+
     pub fn destroy(&mut self)
     {
         self.pool.free_buffer(self.buffer);
@@ -157,7 +214,6 @@ impl CommandBuffer
 pub struct CommandBuffers
 {
     pub graphics: Vec<CommandBuffer>,
-
     pool: Layer<CommandPools>,
 }
 

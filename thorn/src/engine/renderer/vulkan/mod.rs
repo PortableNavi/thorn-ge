@@ -15,12 +15,12 @@ mod swapchain;
 mod sync;
 
 
-use super::api::RenderAPI;
+use super::api::{FrameStatus, RenderAPI};
 use crate::{prelude::*, reg_inspect};
-use ash::vk::{CommandBuffer, RenderPass};
+use ash::vk;
 use command_buffer::CommandBuffers;
 use command_pool::CommandPools;
-use framebuffer::{FrameBuffer, FrameBuffers};
+use framebuffer::FrameBuffers;
 use instance::Instance;
 use logical_device::LogicalDevice;
 use physical_device::PhysicalDevice;
@@ -31,6 +31,10 @@ use sync::VkSync;
 use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 
+// 10 FPS
+const FENCE_WAIT: u64 = 100_000_000;
+
+
 pub(crate) struct VulkanRenderer
 {
     reg: LayerReg<()>,
@@ -38,6 +42,9 @@ pub(crate) struct VulkanRenderer
     surface_height: u32,
     buffered_frames: u32,
     frame: usize,
+    prev_frame: usize,
+    prev_image_index: usize,
+    image_index: usize,
 }
 
 
@@ -51,6 +58,9 @@ impl VulkanRenderer
             surface_height: 0,
             buffered_frames: 3,
             frame: 0,
+            prev_frame: 0,
+            prev_image_index: 0,
+            image_index: 0,
         }
     }
 }
@@ -145,7 +155,6 @@ impl RenderAPI for VulkanRenderer
         Ok(())
     }
 
-    //TODO: Use the new reg_inspect macro...
     fn destroy(&mut self)
     {
         // Wait until we are ready to shut down.
@@ -153,68 +162,49 @@ impl RenderAPI for VulkanRenderer
             let _ = d.logical_device.device_wait_idle();
         });
 
-        if let Some(fbuffers) = self.reg.get::<FrameBuffers>()
-        {
-            fbuffers.write().unwrap().destroy();
-        }
-
-        if let Some(renderpass) = self.reg.get::<Renderpass>()
-        {
-            renderpass.write().unwrap().destroy();
-        }
-
-        if let Some(cbuffers) = self.reg.get::<CommandBuffers>()
-        {
-            cbuffers.write().unwrap().destroy();
-        }
-
-        if let Some(pools) = self.reg.get::<CommandPools>()
-        {
-            pools.write().unwrap().destroy();
-        }
-
-        if let Some(swapchain) = self.reg.get::<Swapchain>()
-        {
-            swapchain.write().unwrap().destroy();
-        }
-
-        reg_inspect!(self.reg, sync=VkSync => sync.destroy());
-
-        if let Some(logical_device) = self.reg.get::<LogicalDevice>()
-        {
-            logical_device.write().unwrap().destroy();
-        }
-
-        if let Some(physical_device) = self.reg.get::<PhysicalDevice>()
-        {
-            physical_device.write().unwrap().destroy();
-        }
-
-        if let Some(surface) = self.reg.get::<Surface>()
-        {
-            surface.write().unwrap().destroy();
-        }
-
-        if let Some(instance) = self.reg.get::<Instance>()
-        {
-            instance.write().unwrap().destroy();
-        }
+        reg_inspect!(self.reg, l=FrameBuffers => l.destroy());
+        reg_inspect!(self.reg, l=Renderpass => l.destroy());
+        reg_inspect!(self.reg, l=CommandBuffers => l.destroy());
+        reg_inspect!(self.reg, l=CommandPools => l.destroy());
+        reg_inspect!(self.reg, l=Swapchain => l.destroy());
+        reg_inspect!(self.reg, l=VkSync => l.destroy());
+        reg_inspect!(self.reg, l=LogicalDevice => l.destroy());
+        reg_inspect!(self.reg, l=PhysicalDevice => l.destroy());
+        reg_inspect!(self.reg, l=Surface => l.destroy());
+        reg_inspect!(self.reg, l=Instance => l.destroy());
 
         log::info!("Vulkan Renderer Destroyed");
     }
 
-    fn frame_prepare(&mut self)
+    fn frame_prepare(&mut self) -> FrameStatus
     {
         let mut swapchain_dirty = false;
         reg_inspect!(self.reg, swapchain = Swapchain => {
 
             // Fetch current frame index.
+            self.prev_frame = self.frame;
             self.frame = swapchain.current_frame;
+
+            if swapchain.is_dirty()
+            {
+                reg_inspect!(self.reg, d=LogicalDevice => unsafe {
+                   if let Err(e) = d.logical_device.device_wait_idle()
+                   {
+                       log::error!("Failed to wait until device is idle");
+                       return FrameStatus::Failed;
+                   }
+                });
+            }
 
             // Recreate swapchain if necessary
             if let Ok(result) = swapchain.recreate_if_dirty()
             {
                 swapchain_dirty = result;
+            }
+            else
+            {
+                log::error!("Swapchain recreation failed");
+                return FrameStatus::Failed;
             }
 
             self.surface_width = swapchain.width;
@@ -232,17 +222,113 @@ impl RenderAPI for VulkanRenderer
         if swapchain_dirty
         {
             reg_inspect!(self.reg, fb = FrameBuffers => {
-                let _ = fb.regenerate();
+                if let Err(e) = fb.regenerate()
+                {
+                    log::error!("Framebuffer regeneration failed: {e}");
+                    return FrameStatus::Failed;
+                }
             });
         }
 
-        // Begin the frame...
-        begin_frame(&self.reg, 0);
+        // Wait for the current image to be available...
+        reg_inspect!(self.reg, sync=VkSync => {
+            if let Err(e) = sync.frame_fences[self.frame].wait(FENCE_WAIT)
+            {
+                log::error!("Fence for this frame timed out, skipping");
+                return FrameStatus::Failed;
+            }
+        });
+
+
+        // Setup new image for this frame
+        reg_inspect!(self.reg, swapchain=Swapchain => {
+            match swapchain.get_next_image_index(FENCE_WAIT, self.frame)
+            {
+                Ok(index) => {
+                    self.prev_image_index = self.image_index;
+                    self.image_index = index as usize;
+                }
+
+                Err(e) => {
+                    log::error!("Failed to aquire new image index to render to...");
+                     return FrameStatus::Failed;
+                }
+            }
+        });
+
+        reg_inspect!(self.reg, buffers=CommandBuffers => {
+            let cbuffer = &mut buffers.graphics[self.image_index];
+            cbuffer.reset();
+            cbuffer.begin(false, false);
+
+            let viewport = vk::Viewport::default()
+                .x(0.0)
+                .y(0.0)
+                .width(self.surface_width as _)
+                .height(self.surface_height as _)
+                .min_depth(0.0)
+                .max_depth(1.0);
+
+            let scissor = vk::Rect2D::default()
+                .offset(vk::Offset2D { x: 0, y: 0 })
+                .extent(vk::Extent2D { width: self.surface_width, height: self.surface_height });
+
+            cbuffer.set_viewport(viewport, scissor);
+        });
+
+        reg_inspect!(self.reg, pass=Renderpass => {
+            pass.begin(self.image_index);
+        });
+
+        FrameStatus::Success
     }
 
-    fn frame_render(&mut self) {}
+    fn frame_render(&mut self) -> FrameStatus
+    {
+        FrameStatus::Success
+    }
 
-    fn frame_finish(&mut self) {}
+    fn frame_finish(&mut self) -> FrameStatus
+    {
+        reg_inspect!(self.reg, pass=Renderpass => {
+            pass.end(self.image_index);
+        });
+
+        reg_inspect!(self.reg, buffers=CommandBuffers => {
+            let mut cbuffer = &mut buffers.graphics[self.image_index];
+            cbuffer.end();
+        });
+
+        reg_inspect!(self.reg, sync=VkSync => {
+            sync.image_frames[self.image_index] = self.frame;
+            //sync.frame_fences[self.frame].wait(FENCE_WAIT);
+            sync.frame_fences[self.frame].reset();
+
+            let wait = sync.image_available[self.frame];
+            let signal = sync.queue_complete[self.frame];
+            let fence = sync.frame_fences[self.frame].fence;
+            let queue = reg_read!(self.reg, LogicalDevice).graphics_queue.unwrap();
+
+            reg_inspect!(self.reg, buffers=CommandBuffers => {
+               if let Err(e) = buffers.graphics[self.image_index].submit(queue, wait, signal, fence)
+               {
+                   log::error!("Failed to submit buffer to queue {e}");
+                   return FrameStatus::Failed;
+               }
+            });
+        });
+
+        reg_inspect!(self.reg, swapchain=Swapchain => {
+           if let Err(e) = swapchain.present(self.image_index, self.frame)
+           {
+               log::error!("Failed to present swapchain {e}");
+               return FrameStatus::Failed;
+           }
+        });
+
+
+        FrameStatus::Success
+    }
 
     fn surface_size_changed(&mut self, w: u32, h: u32) -> ThResult<()>
     {
@@ -252,27 +338,4 @@ impl RenderAPI for VulkanRenderer
 
         Ok(())
     }
-}
-
-fn begin_frame(reg: &LayerReg<()>, index: usize)
-{
-    // reg_inspect!(reg, cbuffers=CommandBuffers => {
-    //     cbuffers.graphics[index].begin(false, false);
-    // });
-
-    // reg_inspect!(reg, pass=Renderpass => {
-    //     pass.begin(index);
-    // });
-}
-
-
-fn end_frame(reg: &LayerReg<()>, index: usize)
-{
-    reg_inspect!(reg, pass=Renderpass => {
-        pass.end(index);
-    });
-
-    reg_inspect!(reg, cbuffers=CommandBuffers => {
-        cbuffers.graphics[index].end();
-    });
 }

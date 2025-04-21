@@ -85,8 +85,8 @@ pub struct VkSync
 {
     pub image_available: Vec<vk::Semaphore>,
     pub queue_complete: Vec<vk::Semaphore>,
-    pub flight_fences: Vec<VkFence>,
-    pub images_in_flight: Vec<VkFence>,
+    pub frame_fences: Vec<VkFence>,
+    pub image_frames: Vec<usize>,
 
     device: Layer<LogicalDevice>,
 }
@@ -101,8 +101,8 @@ impl VkSync
         Ok(Self {
             image_available: vec![],
             queue_complete: vec![],
-            flight_fences: vec![],
-            images_in_flight: vec![],
+            frame_fences: vec![],
+            image_frames: vec![],
             device: reg.get_unchecked(),
         })
     }
@@ -111,14 +111,14 @@ impl VkSync
     {
         let create_info = vk::SemaphoreCreateInfo::default();
 
-        self.flight_fences = Vec::with_capacity(image_count as usize);
-        self.images_in_flight = Vec::with_capacity(image_count as usize);
+        self.frame_fences = Vec::with_capacity(image_count as usize);
+        self.image_frames = vec![0; image_count as usize];
         self.image_available = Vec::with_capacity(image_count as usize);
         self.queue_complete = Vec::with_capacity(image_count as usize);
 
         for _ in 0..image_count
         {
-            self.flight_fences
+            self.frame_fences
                 .push(VkFence::new(self.device.clone(), true)?);
 
             self.image_available.push(unsafe {
@@ -139,7 +139,7 @@ impl VkSync
 
     pub fn destroy(&mut self)
     {
-        for f in &self.flight_fences
+        for f in &self.frame_fences
         {
             f.destroy();
         }
