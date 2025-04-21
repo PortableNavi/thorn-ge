@@ -4,3 +4,4 @@ pub use crate::error::{ThError, ThResult};
 pub use crate::event::LayerEvent;
 pub use crate::layer::{AnyLayer, Layer, LayerDispatch, LayerReg};
 pub use crate::plugin::{Plugin, PluginInfo};
+pub use crate::{either, if_do, reg_read, reg_write};

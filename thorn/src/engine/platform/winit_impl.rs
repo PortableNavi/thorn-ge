@@ -1,10 +1,11 @@
 use super::winit::WinitMsg;
-use crate::prelude::*;
+use crate::{prelude::*, utils::show_msg_box};
 use winit::{
     application::ApplicationHandler,
     dpi::{LogicalPosition, LogicalSize},
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
+    raw_window_handle::{HasDisplayHandle, HasWindowHandle},
     window::Window,
 };
 
@@ -14,6 +15,8 @@ pub struct ThornWindow
     params: WindowParams,
     window: Option<Window>,
     event_emitter: Layer<EventEmitter<PlatformEvent>>,
+    renderer: Layer<Renderer>,
+    is_renderer_initialized: bool,
 }
 
 
@@ -21,13 +24,32 @@ impl ApplicationHandler<WinitMsg> for ThornWindow
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop)
     {
-        //TODO: Initialize renderer here (once)
-        //TODO: Create new surface
-
         if self.window.is_none()
         {
             self.create_window(event_loop);
         }
+
+        if !self.is_renderer_initialized && !event_loop.exiting()
+        {
+            let win = self.window.as_mut().unwrap();
+            match self.renderer.write().unwrap().initialize(
+                win.display_handle().expect("No Display handle...").as_raw(),
+                win.window_handle().expect("No window handle...").as_raw(),
+                win.inner_size().width,
+                win.inner_size().height,
+            )
+            {
+                Err(e) =>
+                {
+                    log::error!("Failed to initialize renderer: {e}");
+                    show_msg_box("ERROR: Failed to initialize the renderer");
+                }
+
+                Ok(_) => self.is_renderer_initialized = true,
+            }
+        }
+
+        //TODO: Create new surface
     }
 
     fn window_event(
@@ -128,6 +150,12 @@ impl ThornWindow
                     .emit(PlatformEvent::PlatformError(e.to_string()))
             }
         }
+
+        if self.window.is_none()
+        {
+            show_msg_box("ERROR: Failed to open a window");
+            event_loop.exit();
+        }
     }
 
     pub fn prepare() -> ThResult<(EventLoop<WinitMsg>, EventLoopProxy<WinitMsg>)>
@@ -141,11 +169,17 @@ impl ThornWindow
         Ok((event_loop, proxy))
     }
 
-    pub fn new(params: WindowParams, event_emitter: Layer<EventEmitter<PlatformEvent>>) -> Self
+    pub fn new(
+        params: WindowParams,
+        event_emitter: Layer<EventEmitter<PlatformEvent>>,
+        renderer: Layer<Renderer>,
+    ) -> Self
     {
         Self {
             params,
             event_emitter,
+            renderer,
+            is_renderer_initialized: false,
             window: None,
         }
     }

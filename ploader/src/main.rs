@@ -11,6 +11,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::thread;
 use std::{process::ExitCode, time::Duration};
 use thorn::engine::platform::ThornWindow;
+use thorn::engine::renderer::RendererPlugin;
 use thorn::engine::{
     core::{Core, CoreMsg, CorePlugin},
     event::{EngineEvent, EventEmitterPlugin, EventReceiverPlugin},
@@ -18,7 +19,7 @@ use thorn::engine::{
     platform::{PlatformEvent, PlatformPlugin},
     tasks::TasksPlugin,
 };
-use thorn::prelude::WindowParams;
+use thorn::prelude::{Backend, WindowParams};
 
 
 fn main()
@@ -50,6 +51,7 @@ fn main()
     loader.discover_plugin(PlatformPlugin(proxy));
     loader.discover_plugin(TasksPlugin);
     loader.discover_plugin(GobjectManagerPlugin);
+    loader.discover_plugin(RendererPlugin(Backend::Vulkan));
 
     // Static library plugins
     loader.discover_plugin(SamplePlugin);
@@ -65,10 +67,13 @@ fn main()
     let window = ThornWindow::new(
         WindowParams::default(),
         loader.registry_mut().get().unwrap(),
+        loader.registry_mut().get().unwrap(),
     );
 
+    let core_layer = loader.registry_mut().get_unchecked::<Core>();
     let plugin_manager_handle = thread::spawn(move || manage_plugins(loader, core));
     window.run(winit);
+    core_layer.read().unwrap().terminate();
 
     if let Err(e) = plugin_manager_handle.join()
     {

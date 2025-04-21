@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+ash = "0.38.0"
+ash-window = "0.13.0"
 ctrlc = "3.4.5"
+dialog = "0.3.0"
 log = "0.4.26"
 thiserror = "2.0.12"
 winit = "0.30.9"

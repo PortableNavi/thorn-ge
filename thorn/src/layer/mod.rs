@@ -58,6 +58,11 @@ impl<E> LayerReg<E>
             .map(|l| Layer::try_from(l).unwrap())
     }
 
+    pub fn get_unchecked<T: Send + Sync + 'static>(&self) -> Layer<T>
+    {
+        self.get().unwrap()
+    }
+
     pub fn remove<T: Send + Sync + 'static>(&mut self) -> Option<Layer<T>>
     {
         self.layers
@@ -81,4 +86,63 @@ impl<E> Default for LayerReg<E>
     {
         Self::new()
     }
+}
+
+
+#[macro_export]
+macro_rules! reg_inspect {
+    ($reg:expr, $name:ident = $layer:ident => $f:expr) => {{
+        if let Some(layer) = $reg.get::<$layer>()
+        {
+            #[allow(unused_mut)]
+            if let Ok(mut $name) = layer.write()
+            {
+                $f;
+            }
+        }
+    }};
+}
+
+
+#[macro_export]
+macro_rules! layer_inspect {
+    ($name:ident = $layer:expr => $f:expr) => {{
+        #[allow(unused_mut)]
+        if let Ok(mut $name) = $layer.write()
+        {
+            $f
+        }
+    }};
+}
+
+
+#[macro_export]
+macro_rules! layer_read {
+    ($layer:expr) => {
+        $layer.read().unwrap()
+    };
+}
+
+
+#[macro_export]
+macro_rules! layer_write {
+    ($layer:expr) => {
+        $layer.write().unwrap()
+    };
+}
+
+
+#[macro_export]
+macro_rules! reg_read {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().read().unwrap()
+    };
+}
+
+
+#[macro_export]
+macro_rules! reg_write {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().write().unwrap()
+    };
 }

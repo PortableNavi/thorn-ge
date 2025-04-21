@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 
 pub trait LayerDispatch<E>
 {
-    fn dispatch(&mut self, event: &E);
+    fn dispatch(&mut self, _event: &E) {}
 }
 
 
