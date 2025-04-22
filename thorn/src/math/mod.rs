@@ -27,6 +27,15 @@ pub struct Vec2Ref<'a>
 }
 
 
+impl<'a> Vec2Ref<'a>
+{
+    pub fn vec2(&self) -> Vec2
+    {
+        Vec2::new(*self.x, *self.y)
+    }
+}
+
+
 impl<'a> From<&'a Vec2> for Vec2Ref<'a>
 {
     #[inline]
@@ -45,6 +54,15 @@ pub struct Vec3Ref<'a>
     pub x: &'a f32,
     pub y: &'a f32,
     pub z: &'a f32,
+}
+
+
+impl<'a> Vec3Ref<'a>
+{
+    pub fn vec3(&self) -> Vec3
+    {
+        Vec3::new(*self.x, *self.y, *self.z)
+    }
 }
 
 
@@ -68,6 +86,15 @@ pub struct Vec4Ref<'a>
     pub y: &'a f32,
     pub z: &'a f32,
     pub w: &'a f32,
+}
+
+
+impl<'a> Vec4Ref<'a>
+{
+    pub fn vec4(&self) -> Vec4
+    {
+        Vec4::new(*self.x, *self.y, *self.z, *self.w)
+    }
 }
 
 
