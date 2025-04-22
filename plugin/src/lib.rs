@@ -2,6 +2,7 @@ mod gobj;
 
 use gobj::{GobjA, GobjB};
 use std::time::Duration;
+use thorn::math::*;
 use thorn::prelude::*;
 
 
@@ -84,6 +85,12 @@ impl Sample
         let mut gobj_manager = self.gobj_manager.write().unwrap();
         gobj_manager.add_gobj(GobjA);
         gobj_manager.add_gobj(GobjB);
+
+        // Test out some math
+        let a = Mat2::from([Vec2::new(1.0, 2.0), Vec2::new(3.0, 4.0)]);
+        let b = Mat2::from([Vec2::new(5.0, 6.0), Vec2::new(7.0, 8.0)]);
+        let c = a * b;
+        println!("{}", c);
     }
 }
 
