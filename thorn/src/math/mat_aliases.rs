@@ -119,7 +119,146 @@ impl Mat4
         ret
     }
 
-    //TODO: implement lookat matrix
+    pub fn lookat(pos: Vec3, target: Vec3, top: Vec3) -> Self
+    {
+        let mut ret = Mat4::new();
+
+        let z_axis = (target - pos).norm();
+        let x_axis = z_axis.cross(top).norm();
+        let y_axis = x_axis.cross(z_axis);
+
+        ret[0] = Vec4::new(x_axis[X], y_axis[X], -z_axis[X], 0.0);
+        ret[1] = Vec4::new(x_axis[Y], y_axis[Y], -z_axis[Y], 0.0);
+        ret[2] = Vec4::new(x_axis[Z], y_axis[Z], -z_axis[Z], 0.0);
+        ret[4] = Vec4::new(-x_axis.dot(pos), -y_axis.dot(pos), z_axis.dot(pos), 1.0);
+
+        ret
+    }
+
+    pub fn invert_unchecked(&self) -> Mat4
+    {
+        //God save me !!!
+        todo!()
+    }
+
+    pub fn translation(&self) -> Vec3
+    {
+        Vec3::new(self[W][X], self[W][Y], self[W][Z])
+    }
+
+    pub fn set_translation(&mut self, t: Vec3)
+    {
+        self[W][X] = t[X];
+        self[W][Y] = t[Y];
+        self[W][Z] = t[Z];
+    }
+
+    pub fn from_translation(pos: Vec3) -> Self
+    {
+        let mut ret = Mat4::new();
+        ret.set_translation(pos);
+        ret
+    }
+
+    pub fn scale(&self) -> Vec3
+    {
+        Vec3::new(self[0][0], self[1][1], self[2][2])
+    }
+
+    pub fn set_scale(&mut self, s: Vec3)
+    {
+        self[0][0] = s[X];
+        self[1][1] = s[Y];
+        self[2][2] = s[Z];
+    }
+
+    pub fn from_scale(scale: Vec3) -> Self
+    {
+        let mut ret = Mat4::new();
+        ret.set_scale(scale);
+        ret
+    }
+
+    pub fn from_euler_x(rad: f32) -> Self
+    {
+        let mut ret = Mat4::new();
+        let cos = rad.cos();
+        let sin = rad.sin();
+
+        ret[1][1] = cos;
+        ret[1][2] = sin;
+        ret[2][1] = -sin;
+        ret[2][2] = sin;
+
+        ret
+    }
+
+    pub fn from_euler_y(rad: f32) -> Self
+    {
+        let mut ret = Mat4::new();
+        let cos = rad.cos();
+        let sin = rad.sin();
+
+        ret[0][0] = cos;
+        ret[0][2] = -sin;
+        ret[2][0] = sin;
+        ret[2][2] = cos;
+
+        ret
+    }
+
+    pub fn from_euler_z(rad: f32) -> Self
+    {
+        let mut ret = Mat4::new();
+        let cos = rad.cos();
+        let sin = rad.sin();
+
+        ret[0][0] = cos;
+        ret[0][1] = sin;
+        ret[1][0] = -sin;
+        ret[1][1] = cos;
+
+        ret
+    }
+
+    pub fn from_euler(xyz_rad: Vec3) -> Self
+    {
+        let x = Self::from_euler_x(xyz_rad[X]);
+        let y = Self::from_euler_y(xyz_rad[Y]);
+        let z = Self::from_euler_z(xyz_rad[Z]);
+
+        (x * y) * z
+    }
+
+    pub fn forward(&self) -> Vec3
+    {
+        Vec3::new(-self[0][2], -self[1][2], -self[2][2]).norm()
+    }
+
+    pub fn backwards(&self) -> Vec3
+    {
+        self.forward() * -1.0
+    }
+
+    pub fn up(&self) -> Vec3
+    {
+        Vec3::new(-self[0][1], -self[1][1], -self[2][1]).norm()
+    }
+
+    pub fn down(&self) -> Vec3
+    {
+        self.up() * -1.0
+    }
+
+    pub fn left(&self) -> Vec3
+    {
+        Vec3::new(-self[0][0], -self[1][0], -self[2][0]).norm()
+    }
+
+    pub fn right(&self) -> Vec3
+    {
+        self.forward() * -1.0
+    }
 }
 
 
