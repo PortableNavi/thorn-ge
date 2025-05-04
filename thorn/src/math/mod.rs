@@ -1,5 +1,6 @@
 mod mat;
 mod mat_aliases;
+mod quat;
 mod vec_aliases;
 mod vector;
 
@@ -7,6 +8,7 @@ mod vector;
 pub use mat::*;
 pub use mat_aliases::*;
 pub use named_indices::*;
+pub use quat::Quat;
 pub use vec_aliases::*;
 pub use vector::*;
 

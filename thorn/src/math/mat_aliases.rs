@@ -1,4 +1,4 @@
-use super::{Matrix, Vec2, Vec2Ref, Vec3, Vec3Ref, Vec4, Vec4Ref, named_indices::*};
+use super::{Matrix, Quat, Vec2, Vec2Ref, Vec3, Vec3Ref, Vec4, Vec4Ref, named_indices::*};
 
 pub type Mat2 = Matrix<2>;
 pub type Mat3 = Matrix<3>;
@@ -280,6 +280,30 @@ impl std::fmt::Display for Mat4
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
         write!(f, "{self:?}")
+    }
+}
+
+
+impl From<Quat> for Mat4
+{
+    fn from(value: Quat) -> Self
+    {
+        let n = value.norm();
+        let mut ret = Mat4::new();
+
+        ret[0][0] = 1.0 - 2.0 * n.j * n.j - 2.0 * n.k * n.k;
+        ret[0][1] = 2.0 * n.i * n.j - 2.0 * n.k * n.r;
+        ret[0][2] = 2.0 * n.i * n.j + 2.0 * n.j * n.r;
+
+        ret[1][0] = 2.0 * n.i * n.j + 2.0 * n.k * n.r;
+        ret[1][1] = 1.0 - 2.0 * n.i * n.i - 2.0 * n.k * n.k;
+        ret[1][2] = 2.0 * n.j * n.k - 2.0 * n.i * n.r;
+
+        ret[2][0] = 2.0 * n.i * n.k - 2.0 * n.j * n.r;
+        ret[2][1] = 2.0 * n.j * n.k + 2.0 * n.i * n.r;
+        ret[2][2] = 1.0 - 2.0 * n.i * n.i - 2.0 * n.j * n.j;
+
+        ret
     }
 }
 
