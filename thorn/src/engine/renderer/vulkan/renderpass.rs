@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{math::Vec3, prelude::*};
 use ash::vk::{self};
 
 use super::{
@@ -26,7 +26,7 @@ pub struct Renderpass
     pub pos_y: u32,
     pub width: u32,
     pub height: u32,
-    pub clear_color: (f32, f32, f32),
+    pub clear_color: Vec3,
     pub state: State,
     pub depth: f32,
     pub stencil: u32,
@@ -49,7 +49,7 @@ impl Renderpass
         let swapchain = reg.get_unchecked::<Swapchain>();
         let swapchain = &swapchain.read().unwrap();
 
-        let clear_color = (0.47, 0.0, 0.16);
+        let clear_color = Vec3::new(0.47, 0.0, 0.16);
 
         let mut attachments = [vk::AttachmentDescription::default(); 2];
 
@@ -143,6 +143,11 @@ impl Renderpass
         })
     }
 
+    pub fn set_clear_color(&mut self, color: Vec3)
+    {
+        self.clear_color = color;
+    }
+
     pub fn destroy(&mut self)
     {
         self.frame_buffer = None; // Avoid cyclic dependency
@@ -161,16 +166,12 @@ impl Renderpass
         let framebuffer =
             self.frame_buffer.as_ref().unwrap().read().unwrap().buffers[image_index].frame_buffer;
 
+        let col = self.clear_color.ovl();
         let clear_values = [
             // Color clear value
             vk::ClearValue {
                 color: vk::ClearColorValue {
-                    float32: [
-                        self.clear_color.0,
-                        self.clear_color.1,
-                        self.clear_color.2,
-                        1.0,
-                    ],
+                    float32: [*col.x, *col.y, *col.z, 1.0],
                 },
             },
             // Depth clear value

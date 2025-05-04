@@ -16,7 +16,7 @@ mod sync;
 
 
 use super::api::{FrameStatus, RenderAPI};
-use crate::{prelude::*, reg_inspect};
+use crate::{math::*, prelude::*, reg_inspect};
 use ash::vk;
 use command_buffer::CommandBuffers;
 use command_pool::CommandPools;
@@ -285,6 +285,15 @@ impl RenderAPI for VulkanRenderer
 
     fn frame_render(&mut self) -> FrameStatus
     {
+        reg_inspect!(self.reg, pass=Renderpass => {
+            pass.clear_color += Vec3::new(0.0, 0.001, 0.0);
+
+            if pass.clear_color[G] > 1.0
+            {
+                pass.clear_color[G] = 0.0;
+            }
+        });
+
         FrameStatus::Success
     }
 
