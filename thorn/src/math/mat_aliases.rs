@@ -95,8 +95,8 @@ impl Mat4
         out[1][1] = 2.0 * xy[Y];
         out[2][2] = 2.0 * clip;
 
-        out[3][0] = -1.0 * (start[X] + end[X]) * xy[X];
-        out[3][1] = -1.0 * (start[Y] + end[Y]) * xy[Y];
+        out[3][0] = -(start[X] + end[X]) * xy[X];
+        out[3][1] = -(start[Y] + end[Y]) * xy[Y];
         out[3][2] = clipping.sum() * clip;
 
         out
