@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs::File,
-    io::{Error, ErrorKind, Result},
+    io::{Error, Result},
     path::Path,
 };
 
@@ -78,7 +78,7 @@ impl ShaderBundle
     {
         let mut file = File::create(path)?;
         let _ = bincode::serde::encode_into_std_write(self, &mut file, bincode::config::standard())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            .map_err(Error::other)?;
         Ok(())
     }
 
@@ -86,6 +86,6 @@ impl ShaderBundle
     {
         let mut file = File::open(path)?;
         bincode::serde::decode_from_std_read(&mut file, bincode::config::standard())
-            .map_err(|e| Error::new(ErrorKind::Other, e))
+            .map_err(Error::other)
     }
 }

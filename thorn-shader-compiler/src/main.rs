@@ -33,7 +33,7 @@ fn main()
 
     std::fs::create_dir_all(&out).expect("Failed to create output dir");
 
-    if let Err(_) = compile_shaders(crates, out, list_name, &target)
+    if compile_shaders(crates, out, list_name, &target).is_err()
     {
         println!("Error: Failed to compile shaders");
         exit(1);
