@@ -18,10 +18,12 @@ jobs:
     name: cargo fmt
     runs-on: ubuntu-latest
     steps:
+      - name: Setup fmt config
+        run: cp ./rustfmt.config
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          components: rustfmt
+          components: mkdir -p ~/.config/rustfmt && cp ./rustfmt ~/.config/rustfmt/rustfmt.config
       - name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@v1
         with:
