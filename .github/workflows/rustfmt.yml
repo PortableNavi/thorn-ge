@@ -14,9 +14,13 @@ jobs:
     name: cargo fmt
     runs-on: ubuntu-latest
     steps:
+      - name: Setup fmt config
+        run: mkdir -p ~/.config/rustfmt && cp ${{ github.workspace }}/rustfmt.toml ~/.config/rustfmt/rustfmt.toml
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: rustfmt
       - name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@v1
+        with:
+          manifest-path: ./thorn-ge/Cargo.toml

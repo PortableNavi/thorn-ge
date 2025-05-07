@@ -1,0 +1,4 @@
+[workspace]
+members = ["ploader", "plugin", "thorn", "shader-utils"]
+exclude = ["shaders", "shader-compiler"]
+resolver = "2"
