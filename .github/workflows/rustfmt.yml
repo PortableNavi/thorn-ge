@@ -1,9 +1,5 @@
 name: Rustfmt
 
-defaults:
-  run:
-    working-directory: ./thorn-ge
-
 on:
   push:
     branches: [ "main" ]
