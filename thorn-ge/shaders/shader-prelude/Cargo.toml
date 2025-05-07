@@ -1,0 +1,11 @@
+[package]
+name = "shader-prelude"
+version = "0.0.0"
+authors = []
+edition = "2021"
+
+[dependencies]
+spirv-std.workspace = true
+
+[lints]
+workspace = true

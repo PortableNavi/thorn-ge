@@ -1,0 +1,13 @@
+[package]
+name = "blank"
+version = "0.1.0"
+authors = []
+edition = "2021"
+
+[lib]
+crate-type = ["dylib"]
+
+[dependencies]
+libm = "=0.2.6"
+spirv-std = "0.9"
+#shader-prelude = { path = "../../shader-prelude" }
