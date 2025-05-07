@@ -13,6 +13,9 @@ jobs:
   formatting:
     name: cargo fmt
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./thorn-ge
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
