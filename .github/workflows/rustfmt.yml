@@ -1,9 +1,5 @@
 name: Rustfmt
 
-defaults:
-  run:
-    working-directory: ./thorn-ge
-
 on:
   push:
     branches: [ "main" ]
@@ -14,15 +10,19 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  formatting:
-    name: cargo fmt
+  rustfmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          components: rustfmt
-      - name: Rustfmt Check
-        uses: actions-rust-lang/rustfmt@v1
-        with:
-          manifest-path: ./thorn-ge/Cargo.toml
+    - uses: actions/checkout@v4
+    
+    - name: Setup Shader Compilation Toolchain
+      run: rustup toolchain install nightly-2023-05-27 && rustup +nightly-2023-05-27 component add rust-src rustc-dev llvm-tools-preview
+
+    - name: Sample Plugin
+      run: cd sample-plugin && cargo fmt --check
+
+    - name: Shader Compiler
+      run: cd tools/thorn-shader-compiler && cargo fmt --check
+    
+    - name: Thorn-GE
+      run: cd thorn-ge && cargo fmt --check

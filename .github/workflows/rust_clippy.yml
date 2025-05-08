@@ -11,7 +11,7 @@ env:
   RUSTFLAGS: "-Dwarnings"
 
 jobs:
-  build:
+  clippy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -19,5 +19,11 @@ jobs:
     - name: Setup Shader Compilation Toolchain
       run: rustup toolchain install nightly-2023-05-27 && rustup +nightly-2023-05-27 component add rust-src rustc-dev llvm-tools-preview
 
-    - name: Clippy
+    - name: Sample Plugin
+      run: cd sample-plugin && cargo clippy --all-targets --all-features
+
+    - name: Shader Compiler
+      run: cd tools/thorn-shader-compiler && cargo clippy --all-targets --all-features
+    
+    - name: Thorn-GE
       run: cd thorn-ge && cargo clippy --all-targets --all-features
