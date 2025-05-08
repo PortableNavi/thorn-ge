@@ -26,6 +26,6 @@ jobs:
     - name: Shader Compiler
       run: cd tools/thorn-shader-compiler && cargo build --verbose && cargo test --verbose
 
-    - name: Thorn-GEL
+    - name: Thorn-GE
       run: cd thorn-ge && cargo build --verbose && cargo test --verbose
       
