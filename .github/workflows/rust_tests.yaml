@@ -9,18 +9,23 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-Dwarnings"
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
     - name: Setup Shader Compilation Toolchain
       run: rustup toolchain install nightly-2023-05-27 && rustup +nightly-2023-05-27 component add rust-src rustc-dev llvm-tools-preview
-
-    - name: Build
-      run: cd thorn-ge && cargo build --verbose
       
-    - name: Test
-      run: cd thorn-ge && cargo test --verbose
+    - name: Sample Plugin
+      run: cd sample-plugin && cargo build --verbose && cargo test --verbose
+
+    - name: Shader Compiler
+      run: cd tools/thorn-shader-compiler && cargo build --verbose && cargo test --verbose
+
+    - name: Thorn-GE
+      run: cd thorn-ge && cargo build --verbose && cargo test --verbose
+      

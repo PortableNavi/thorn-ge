@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
     let list = out.join("shader_list.txt");
 
     let crates = PathBuf::from("../shaders/shaders".to_string()).canonicalize()?;
-    let compiler = PathBuf::from("../../thorn-shader-compiler".to_string()).canonicalize()?;
+    let compiler = PathBuf::from("../../tools/thorn-shader-compiler".to_string()).canonicalize()?;
     let bundle_path = "../shaders/thorn.shader_bundle";
 
     println!("Compiler:      {compiler:?}");
