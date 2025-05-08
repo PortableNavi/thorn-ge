@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Setup Shader Compilation Toolchain
-      run: rustup toolchain install nightly-2023-05-27 && rustup +nightly-2023-05-27 component add rust-src rustc-dev llvm-tools-preview
+      run: rustup toolchain install nightly-2023-05-27 && rustup +nightly-2023-05-27 component add rust-src rustc-dev llvm-tools-preview rustfmt
 
     - name: Sample Plugin
       run: cd sample-plugin && cargo fmt --check
