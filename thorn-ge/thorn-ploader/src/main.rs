@@ -6,7 +6,7 @@ mod logger;
 
 
 use loader::PluginLoader;
-use plugin::SamplePlugin;
+use sample_plugin::SamplePlugin;
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::thread;
 use std::{process::ExitCode, time::Duration};
@@ -84,17 +84,26 @@ fn main()
 
 fn manage_plugins(mut loader: PluginLoader, core: Receiver<CoreMsg>)
 {
+    const MAX_TIMEOUTS: usize = 20;
+
+    let mut timeouts = 0;
+
     loop
     {
         match core.recv_timeout(Duration::from_secs(1))
         {
             // Dispatch layer events from core to all other layers.
-            Ok(CoreMsg::Dispatch(event)) => loader.registry_mut().dispatch(event),
+            Ok(CoreMsg::Dispatch(event)) =>
+            {
+                timeouts = 0;
+                loader.registry_mut().dispatch(event)
+            }
 
             // Check if the main loop is still alive on timeout
             Err(RecvTimeoutError::Timeout) =>
             {
                 log::warn!("Core loop connection timed out...");
+                timeouts += 1;
 
                 if !loader
                     .registry_mut()
@@ -118,6 +127,15 @@ fn manage_plugins(mut loader: PluginLoader, core: Receiver<CoreMsg>)
 
             // Exit if termination msg is received
             Ok(CoreMsg::Terminate) => break,
+        }
+
+        if timeouts >= MAX_TIMEOUTS
+        {
+            log::error!(
+                "Core Loop times out {timeouts} times in a row. Assuming crash/deadlock. Shutting down..."
+            );
+
+            break;
         }
     }
 

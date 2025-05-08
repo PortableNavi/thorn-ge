@@ -6,5 +6,5 @@ edition = "2024"
 [dependencies]
 fern = "0.7.1"
 log = "0.4.27"
-plugin = {path="../plugin"}
+sample-plugin = {path="../../sample-plugin"}
 thorn = {path="../thorn"}

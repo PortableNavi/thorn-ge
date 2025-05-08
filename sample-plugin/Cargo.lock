@@ -420,15 +420,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fern"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4316185f709b23713e41e3195f90edef7fb00c3ed4adc79769cf09cc762a3b29"
-dependencies = [
- "log",
-]
-
-[[package]]
 name = "foreign-types"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1322,16 +1313,6 @@ dependencies = [
  "shader-utils",
  "thiserror 2.0.12",
  "winit",
-]
-
-[[package]]
-name = "thorn-ploader"
-version = "0.1.0"
-dependencies = [
- "fern",
- "log",
- "sample-plugin",
- "thorn",
 ]
 
 [[package]]
